@@ -78,7 +78,7 @@ class ConfigurationCacheIT : AbstractConfigurationCacheIT() {
 
     // KT-43605
     @Test
-    fun testInstantExecutionWithBuildSrc() = with(Project("instantExecutionWithBuildSrc")) {
+    fun testInstantExecutionWithBuildSrc() = with(Project("instantExecutionWithBuildSrc", gradleVersionRequirement = GradleVersionRequired.AtLeast("6.7"))) {
         setupWorkingDir()
         testConfigurationCacheOf(
             "build", executedTaskNames = listOf(
