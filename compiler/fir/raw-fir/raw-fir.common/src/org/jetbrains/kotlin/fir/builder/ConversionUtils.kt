@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.fir.types.builder.buildResolvedTypeRef
 import org.jetbrains.kotlin.fir.types.impl.*
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.psi.KtAnnotated
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.types.expressions.OperatorConventions
@@ -488,7 +489,7 @@ fun <T> FirPropertyBuilder.generateAccessorsByDelegate(
                 this.moduleData = moduleData
                 origin = FirDeclarationOrigin.Source
                 returnTypeRef = buildImplicitTypeRef()
-                name = DELEGATED_SETTER_PARAM
+                name = SpecialNames.IMPLICIT_SET_PARAMETER
                 symbol = FirValueParameterSymbol(this@generateAccessorsByDelegate.name)
                 isCrossinline = false
                 isNoinline = false
@@ -510,7 +511,7 @@ fun <T> FirPropertyBuilder.generateAccessorsByDelegate(
                         arguments += buildPropertyAccessExpression {
                             calleeReference = buildResolvedNamedReference {
                                 source = fakeSource
-                                name = DELEGATED_SETTER_PARAM
+                                name = SpecialNames.IMPLICIT_SET_PARAMETER
                                 resolvedSymbol = parameter.symbol
                             }
                         }
@@ -527,8 +528,6 @@ fun <T> FirPropertyBuilder.generateAccessorsByDelegate(
         }
     }
 }
-
-private val DELEGATED_SETTER_PARAM = Name.special("<set-?>")
 
 fun FirBlock?.extractContractDescriptionIfPossible(): Pair<FirBlock?, FirContractDescription?> {
     if (this == null) return null to null
