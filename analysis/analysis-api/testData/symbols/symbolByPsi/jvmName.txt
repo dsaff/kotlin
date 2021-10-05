@@ -1,4 +1,4 @@
-KtFirKotlinPropertySymbol:
+KtKotlinPropertySymbol:
   annotatedType: [] kotlin/Int
   annotationClassIds: [
     kotlin/jvm/JvmName
@@ -12,7 +12,7 @@ KtFirKotlinPropertySymbol:
   ]
   callableIdIfNonLocal: /Foo.i
   dispatchType: Foo
-  getter: KtFirPropertyGetterSymbol(<getter>)
+  getter: KtPropertyGetterSymbol(<getter>)
   hasBackingField: true
   hasGetter: true
   hasSetter: true
@@ -28,7 +28,7 @@ KtFirKotlinPropertySymbol:
   name: i
   origin: SOURCE
   receiverType: null
-  setter: KtFirPropertySetterSymbol(<setter>)
+  setter: KtPropertySetterSymbol(<setter>)
   symbolKind: CLASS_MEMBER
   visibility: Public
   deprecationStatus: null
@@ -37,7 +37,7 @@ KtFirKotlinPropertySymbol:
   javaSetterName: setMyI
   setterDeprecationStatus: null
 
-KtFirPropertyGetterSymbol:
+KtPropertyGetterSymbol:
   annotatedType: [] kotlin/Int
   annotationClassIds: [
     kotlin/jvm/JvmName
@@ -62,7 +62,7 @@ KtFirPropertyGetterSymbol:
   visibility: Public
   deprecationStatus: null
 
-KtFirValueParameterSymbol:
+KtValueParameterSymbol:
   annotatedType: [] kotlin/Int
   annotationClassIds: []
   annotations: []
@@ -76,7 +76,7 @@ KtFirValueParameterSymbol:
   symbolKind: LOCAL
   deprecationStatus: null
 
-KtFirPropertySetterSymbol:
+KtPropertySetterSymbol:
   annotatedType: [] kotlin/Unit
   annotationClassIds: [
     kotlin/jvm/JvmName
@@ -95,22 +95,22 @@ KtFirPropertySetterSymbol:
   isOverride: false
   modality: FINAL
   origin: SOURCE
-  parameter: KtFirValueParameterSymbol(value)
+  parameter: KtValueParameterSymbol(value)
   receiverType: null
   symbolKind: ACCESSOR
   valueParameters: [
-    KtFirValueParameterSymbol(value)
+    KtValueParameterSymbol(value)
   ]
   visibility: Public
   deprecationStatus: null
 
-KtFirKotlinPropertySymbol:
+KtKotlinPropertySymbol:
   annotatedType: [] kotlin/Int
   annotationClassIds: []
   annotations: []
   callableIdIfNonLocal: /Foo.j
   dispatchType: Foo
-  getter: KtFirPropertyGetterSymbol(<getter>)
+  getter: KtPropertyGetterSymbol(<getter>)
   hasBackingField: false
   hasGetter: true
   hasSetter: true
@@ -126,7 +126,7 @@ KtFirKotlinPropertySymbol:
   name: j
   origin: SOURCE
   receiverType: null
-  setter: KtFirPropertySetterSymbol(<setter>)
+  setter: KtPropertySetterSymbol(<setter>)
   symbolKind: CLASS_MEMBER
   visibility: Public
   deprecationStatus: null
@@ -135,7 +135,7 @@ KtFirKotlinPropertySymbol:
   javaSetterName: setMyJ
   setterDeprecationStatus: null
 
-KtFirNamedClassOrObjectSymbol:
+KtNamedClassOrObjectSymbol:
   annotationClassIds: []
   annotations: []
   classIdIfNonLocal: Foo
