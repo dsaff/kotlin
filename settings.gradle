@@ -476,7 +476,8 @@ include ":generators:analysis-api-generator",
         ":analysis:analysis-api-impl-base",
         ":analysis:analysis-api-providers",
         ":analysis:symbol-light-classes",
-        ":analysis:project-structure"
+        ":analysis:project-structure",
+        ":analysis:analysis-api-descriptors"
 
 
 if (buildProperties.inJpsBuildIdeaSync) {

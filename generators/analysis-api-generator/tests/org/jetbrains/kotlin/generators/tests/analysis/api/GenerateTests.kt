@@ -24,6 +24,9 @@ import org.jetbrains.kotlin.analysis.api.fir.scopes.AbstractFirMemberScopeByFqNa
 import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByFqNameTest
 import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByPsiTest
 import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByReferenceTest
+import org.jetbrains.kotlin.analysis.api.descriptors.test.components.*
+import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKt1SymbolByFqNameTest
+import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKt1SymbolByReferenceTest
 import org.jetbrains.kotlin.spec.utils.GeneralConfiguration
 import org.jetbrains.kotlin.spec.utils.tasks.detectDirsWithTestsMapFileOnly
 import org.jetbrains.kotlin.test.generators.generateTestGroupSuiteWithJUnit5
@@ -90,6 +93,56 @@ fun main(args: Array<String>) {
             }
 
             testClass<AbstractFirHasCommonSubtypeTest> {
+                model("components/hasCommonSubtype")
+            }
+        }
+
+        testGroup("analysis/analysis-api-descriptors/tests", "analysis/analysis-api/testData") {
+//            testClass<AbstractKt1ResolveCallTest> {
+//                model("analysisSession/resolveCall")
+//            }
+
+//            testClass<AbstractKt1MemberScopeByFqNameTest> {
+//                model("memberScopeByFqName")
+//            }
+
+//            testClass<AbstractKt1FileScopeTest> {
+//                model("fileScopeTest", extension = "kt")
+//            }
+
+//            testClass<AbstractKt1SymbolByPsiTest> {
+//                model("symbols/symbolByPsi")
+//            }
+
+            testClass<AbstractKt1SymbolByFqNameTest> {
+                model("symbols/symbolByFqName")
+            }
+
+            testClass<AbstractKt1SymbolByReferenceTest> {
+                model("symbols/symbolByReference")
+            }
+
+            testClass<AbstractKt1ExpectedExpressionTypeTest> {
+                model("components/expectedExpressionType")
+            }
+
+            testClass<AbstractKt1OverriddenDeclarationProviderTest> {
+                model("components/overridenDeclarations")
+            }
+
+            testClass<AbstractKt1HLExpressionTypeTest> {
+                model("components/expressionType")
+            }
+
+            testClass<AbstractKt1RendererTest> {
+                model("components/declarationRenderer")
+            }
+
+//            testClass<AbstractKt1ReferenceResolveTest> {
+//                model("referenceResolve", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
+//            }
+
+            testClass<AbstractKt1HasCommonSubtypeTest> {
                 model("components/hasCommonSubtype")
             }
         }
