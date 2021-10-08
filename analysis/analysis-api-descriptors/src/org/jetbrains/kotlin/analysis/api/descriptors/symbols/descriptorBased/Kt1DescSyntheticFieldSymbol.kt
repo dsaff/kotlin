@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.analysis.api.descriptors.Kt1AnalysisSession
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.base.Kt1Symbol
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.toKtTypeAndAnnotations
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1DescSyntheticFieldSymbolPointer
-import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRevivingSymbolPointer
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRestoringSymbolPointer
 import org.jetbrains.kotlin.analysis.api.symbols.KtBackingFieldSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertyAccessorSymbol
@@ -45,6 +45,6 @@ internal class Kt1DescSyntheticFieldSymbol(
             return Kt1DescSyntheticFieldSymbolPointer(accessorPointer)
         }
 
-        return Kt1NeverRevivingSymbolPointer()
+        return Kt1NeverRestoringSymbolPointer()
     }
 }

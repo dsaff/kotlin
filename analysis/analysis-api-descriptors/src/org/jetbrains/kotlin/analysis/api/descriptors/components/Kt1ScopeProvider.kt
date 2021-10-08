@@ -122,7 +122,7 @@ internal class Kt1ScopeProvider(override val analysisSession: Kt1AnalysisSession
             is Kt1DescSymbol<*> -> symbol.descriptor as? T
             is Kt1PsiSymbol<*, *> -> symbol.descriptor as? T
             else -> {
-                assert(symbol is Kt1Symbol) { "Unrecognized symbol implementation found" }
+                require(symbol is Kt1Symbol) { "Unrecognized symbol implementation found" }
                 null
             }
         }

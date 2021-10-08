@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.bas
 import org.jetbrains.kotlin.analysis.api.tokens.ValidityToken
 import org.jetbrains.kotlin.analysis.api.types.KtType
 import org.jetbrains.kotlin.analysis.api.withValidityAssertion
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.CallableDescriptor
 import org.jetbrains.kotlin.diagnostics.Errors
 import org.jetbrains.kotlin.lexer.KtTokens
@@ -47,6 +48,9 @@ class Kt1ExpressionTypeProvider(override val analysisSession: Kt1AnalysisSession
     override val token: ValidityToken
         get() = analysisSession.token
 
+    private val builtIns: KotlinBuiltIns
+        get() = analysisSession.resolveSession.moduleDescriptor.builtIns
+
     override fun getKtExpressionType(expression: KtExpression): KtType? = withValidityAssertion {
         // Not sure if it's safe enough. In theory, some annotations on expressions might change its type
         val unwrapped = expression.unwrapParenthesesLabelsAndAnnotations() as? KtExpression ?: return null
@@ -55,11 +59,12 @@ class Kt1ExpressionTypeProvider(override val analysisSession: Kt1AnalysisSession
         }
 
         val bindingContext = analysisSession.analyze(unwrapped, AnalysisMode.PARTIAL)
-        val kotlinType = expression.getType(bindingContext) ?: analysisSession.resolveSession.moduleDescriptor.builtIns.unitType
+        val kotlinType = expression.getType(bindingContext) ?: builtIns.unitType
         return kotlinType.toKtType(analysisSession)
     }
 
     override fun getReturnTypeForKtDeclaration(declaration: KtDeclaration): KtType = withValidityAssertion {
+        // Handle callable declarations with explicit return type first
         if (declaration is KtCallableDeclaration) {
             val typeReference = declaration.typeReference
 
@@ -96,7 +101,7 @@ class Kt1ExpressionTypeProvider(override val analysisSession: Kt1AnalysisSession
             return kotlinType.toKtType(analysisSession)
         }
 
-        return analysisSession.resolveSession.moduleDescriptor.builtIns.unitType.toKtType(analysisSession)
+        return builtIns.unitType.toKtType(analysisSession)
     }
 
     override fun getFunctionalTypeForKtFunction(declaration: KtFunction): KtType = withValidityAssertion {
@@ -108,7 +113,6 @@ class Kt1ExpressionTypeProvider(override val analysisSession: Kt1AnalysisSession
             return getFunctionTypeForAbstractMethod(functionDescriptor, false).toKtType(analysisSession)
         }
 
-        val builtIns = analysisSession.resolveSession.moduleDescriptor.builtIns
         val parameterCount = declaration.valueParameters.size + (if (declaration.isExtensionDeclaration()) 1 else 0)
 
         val function = when {

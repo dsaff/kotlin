@@ -104,7 +104,7 @@ internal class Kt1SymbolProvider(override val analysisSession: Kt1AnalysisSessio
         }
     }
 
-    override fun getClassInitializerSymbol(psi: KtClassInitializer): KtClassInitializerSymbol {
+    override fun getClassInitializerSymbol(psi: KtClassInitializer): KtClassInitializerSymbol = withValidityAssertion {
         return Kt1PsiClassInitializerSymbol(psi, analysisSession)
     }
 

@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.resolve.source.getPsi
 object Kt1PolyVariantResolver : ResolveCache.PolyVariantResolver<KtReference> {
     @OptIn(HackToForceAllowRunningAnalyzeOnEDT::class)
     override fun resolve(reference: KtReference, incompleteCode: Boolean): Array<ResolveResult> {
-        check(reference is AbstractKtReference<*>) { "reference should be AbstractKtReference, but was ${reference::class}" }
+        require(reference is AbstractKtReference<*>) { "reference should be AbstractKtReference, but was ${reference::class}" }
         return runInPossiblyEdtThread {
             val expression = reference.expression
             analyse(reference.expression) {

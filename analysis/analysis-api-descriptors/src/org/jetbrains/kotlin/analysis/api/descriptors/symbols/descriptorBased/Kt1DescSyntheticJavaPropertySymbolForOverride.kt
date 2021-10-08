@@ -9,7 +9,7 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.descriptors.Kt1AnalysisSession
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.base.Kt1Symbol
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.*
-import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRevivingSymbolPointer
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRestoringSymbolPointer
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtAnnotationCall
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtConstantValue
@@ -92,7 +92,7 @@ internal class Kt1DescSyntheticJavaPropertySymbolForOverride(
         get() = withValidityAssertion { KtSymbolOrigin.JAVA_SYNTHETIC_PROPERTY }
 
     override fun createPointer(): KtSymbolPointer<KtSyntheticJavaPropertySymbol> = withValidityAssertion {
-        return KtPsiBasedSymbolPointer.createForSymbolFromSource(this) ?: Kt1NeverRevivingSymbolPointer()
+        return KtPsiBasedSymbolPointer.createForSymbolFromSource(this) ?: Kt1NeverRestoringSymbolPointer()
     }
 
     private class EmptyGetterSymbol(
@@ -155,7 +155,7 @@ internal class Kt1DescSyntheticJavaPropertySymbolForOverride(
 
         override fun createPointer(): KtSymbolPointer<KtPropertyGetterSymbol> {
             withValidityAssertion {
-                return Kt1NeverRevivingSymbolPointer()
+                return Kt1NeverRestoringSymbolPointer()
             }
         }
     }

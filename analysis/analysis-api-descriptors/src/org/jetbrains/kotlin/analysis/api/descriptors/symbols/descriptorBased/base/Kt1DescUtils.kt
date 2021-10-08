@@ -100,12 +100,10 @@ internal fun ConstructorDescriptor.toKtConstructorSymbol(analysisSession: Kt1Ana
 }
 
 internal val CallableMemberDescriptor.ktHasStableParameterNames: Boolean
-    get() {
-        return if (this is ConstructorDescriptor && isPrimary && constructedClass.kind == ClassKind.ANNOTATION_CLASS) {
-            return true
-        } else if (isExpect) {
-            return false
-        } else when (this) {
+    get() = when {
+        this is ConstructorDescriptor && isPrimary && constructedClass.kind == ClassKind.ANNOTATION_CLASS -> true
+        isExpect -> false
+        else -> when (this) {
             is JavaCallableMemberDescriptor -> false
             else -> hasStableParameterNames()
         }

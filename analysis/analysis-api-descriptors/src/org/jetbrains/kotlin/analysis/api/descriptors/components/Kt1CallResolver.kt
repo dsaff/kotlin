@@ -113,10 +113,16 @@ internal class Kt1CallResolver(override val analysisSession: Kt1AnalysisSession)
         return resolveCall(call, isUsualCall = false)
     }
 
-    override fun resolveCall(call: KtArrayAccessExpression): KtCall? {
+    override fun resolveCall(call: KtArrayAccessExpression): KtCall? = withValidityAssertion {
         return resolveCall(call, isUsualCall = false)
     }
 
+    /**
+     * Analyze the given call element (a function call, unary/binary operator call, or convention call).
+     *
+     * @param call the call element to analyze.
+     * @param isUsualCall `true` if the call is a usual function call (`foo()` or `foo {}`).
+     */
     private fun resolveCall(call: KtElement, isUsualCall: Boolean): KtCall? {
         val bindingContext = analysisSession.analyze(call, Kt1AnalysisSession.AnalysisMode.PARTIAL_WITH_DIAGNOSTICS)
         val resolvedCall = call.getResolvedCall(bindingContext) ?: return getUnresolvedCall(call)

@@ -18,12 +18,9 @@ import org.jetbrains.kotlin.analysis.api.withValidityAssertion
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.psi.KtCallableDeclaration
-import org.jetbrains.kotlin.psi.KtExpression
-import org.jetbrains.kotlin.psi.KtNamedFunction
-import org.jetbrains.kotlin.psi.KtProperty
-import org.jetbrains.kotlin.psi.psiUtil.containingClassOrObject
+import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.isExtension
 import org.jetbrains.kotlin.resolve.scopes.receivers.ExpressionReceiver
 import org.jetbrains.kotlin.resolve.scopes.utils.getImplicitReceiversHierarchy
@@ -45,8 +42,8 @@ internal class Kt1VisibilityChecker(override val analysisSession: Kt1AnalysisSes
         val targetDescriptor = getSymbolDescriptor(candidateSymbol) as? DeclarationDescriptorWithVisibility ?: return false
 
         val useSiteDeclaration = findContainingNonLocalDeclaration(position) ?: return false
-        val useSiteSymbol = with(analysisSession) { useSiteDeclaration.getSymbol() }
-        val useSiteDescriptor = getSymbolDescriptor(useSiteSymbol) ?: return false
+        val bindingContextForUseSite = analysisSession.analyze(useSiteDeclaration)
+        val useSiteDescriptor = bindingContextForUseSite[BindingContext.DECLARATION_TO_DESCRIPTOR, useSiteDeclaration] ?: return false
 
         if (receiverExpression != null && !targetDescriptor.isExtension) {
             val bindingContext = analysisSession.analyze(receiverExpression, AnalysisMode.PARTIAL)
@@ -68,12 +65,11 @@ internal class Kt1VisibilityChecker(override val analysisSession: Kt1AnalysisSes
 }
 
 private fun findContainingNonLocalDeclaration(element: PsiElement): KtCallableDeclaration? {
-    return element
-        .parentsWithSelf
-        .filterIsInstance<KtCallableDeclaration>()
-        .firstOrNull { it.isNotFromLocalClass }
-}
+    for (parent in element.parentsWithSelf) {
+        if (parent is KtCallableDeclaration && !KtPsiUtil.isLocal(parent)) {
+            return parent
+        }
+    }
 
-private val KtCallableDeclaration.isNotFromLocalClass
-    get() = this is KtNamedFunction && (isTopLevel || containingClassOrObject?.isLocal == false) ||
-            this is KtProperty && (isTopLevel || containingClassOrObject?.isLocal == false)
+    return null
+}

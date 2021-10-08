@@ -9,7 +9,7 @@ import org.jetbrains.kotlin.analysis.api.KtAnalysisSession
 import org.jetbrains.kotlin.analysis.api.symbols.KtSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KtSymbolPointer
 
-internal class Kt1NeverRevivingSymbolPointer<T : KtSymbol> : KtSymbolPointer<T>() {
+internal class Kt1NeverRestoringSymbolPointer<T : KtSymbol> : KtSymbolPointer<T>() {
     @Deprecated("Consider using org.jetbrains.kotlin.analysis.api.KtAnalysisSession.restoreSymbol", ReplaceWith("null"))
     override fun restoreSymbol(analysisSession: KtAnalysisSession): T? {
         return null

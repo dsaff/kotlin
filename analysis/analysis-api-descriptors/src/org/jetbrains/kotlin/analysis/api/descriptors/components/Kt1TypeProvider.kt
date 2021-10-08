@@ -166,12 +166,10 @@ internal class Kt1TypeProvider(override val analysisSession: Kt1AnalysisSession)
     ): Boolean {
         val upperBoundClasses = upperBounds.mapNotNull { getBoundClass(it) }.toSet()
 
-        if (lowerBounds.isEmpty() && areClassesOrInterfacesCompatible(upperBoundClasses) == true) {
-            return true
-        }
-
         val leafClassesOrInterfaces = computeLeafClassesOrInterfaces(upperBoundClasses)
-        areClassesOrInterfacesCompatible(leafClassesOrInterfaces)?.let { return it }
+        if (areClassesOrInterfacesIncompatible(leafClassesOrInterfaces)) {
+            return false
+        }
 
         if (!lowerBounds.all { lowerBoundType ->
                 val classesSatisfyingLowerBounds = collectSuperClasses(lowerBoundType)
@@ -377,13 +375,13 @@ internal class Kt1TypeProvider(override val analysisSession: Kt1AnalysisSession)
         return result
     }
 
-    private fun areClassesOrInterfacesCompatible(classesOrInterfaces: Collection<ClassDescriptor>): Boolean? {
+    private fun areClassesOrInterfacesIncompatible(classesOrInterfaces: Collection<ClassDescriptor>): Boolean {
         val classes = classesOrInterfaces.filter { !it.isInterfaceLike }
         return when {
-            classes.size >= 2 -> false
-            !classes.any { it.isFinalOrEnum } -> null
-            classesOrInterfaces.size > classes.size -> false
-            else -> null
+            classes.size >= 2 -> true
+            !classes.any { it.isFinalOrEnum } -> false
+            classesOrInterfaces.size > classes.size -> true
+            else -> false
         }
     }
 }

@@ -9,7 +9,7 @@ import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.descriptors.Kt1AnalysisSession
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.base.Kt1Symbol
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.toKtTypeAndAnnotations
-import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRevivingSymbolPointer
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.Kt1NeverRestoringSymbolPointer
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.createErrorTypeAndAnnotations
 import org.jetbrains.kotlin.analysis.api.descriptors.utils.cached
 import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolOrigin
@@ -62,6 +62,6 @@ internal class Kt1PsiDefaultSetterParameterSymbol(
         get() = withValidityAssertion { emptyList() }
 
     override fun createPointer(): KtSymbolPointer<KtValueParameterSymbol> = withValidityAssertion {
-        return Kt1NeverRevivingSymbolPointer()
+        return Kt1NeverRestoringSymbolPointer()
     }
 }
