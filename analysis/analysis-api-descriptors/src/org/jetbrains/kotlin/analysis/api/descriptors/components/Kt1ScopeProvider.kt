@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.bas
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.Kt1PsiSymbol
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.getResolutionScope
 import org.jetbrains.kotlin.analysis.api.descriptors.types.base.Kt1Type
+import org.jetbrains.kotlin.analysis.api.impl.base.scopes.SimpleKtCompositeScope
 import org.jetbrains.kotlin.analysis.api.scopes.*
 import org.jetbrains.kotlin.analysis.api.symbols.KtFileSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPackageSymbol
@@ -94,7 +95,7 @@ internal class Kt1ScopeProvider(override val analysisSession: Kt1AnalysisSession
     }
 
     override fun getCompositeScope(subScopes: List<KtScope>): KtCompositeScope = withValidityAssertion {
-        return Kt1CompositeScope(subScopes, token)
+        return SimpleKtCompositeScope(subScopes, token)
     }
 
     override fun getTypeScope(type: KtType): KtScope = withValidityAssertion {
@@ -108,12 +109,12 @@ internal class Kt1ScopeProvider(override val analysisSession: Kt1AnalysisSession
 
         val lexicalScope = positionInFakeFile.getResolutionScope(bindingContext)
         if (lexicalScope != null) {
-            val compositeScope = Kt1CompositeScope(listOf(Kt1ScopeLexical(lexicalScope, analysisSession)), token)
+            val compositeScope = SimpleKtCompositeScope(listOf(Kt1ScopeLexical(lexicalScope, analysisSession)), token)
             return KtScopeContext(compositeScope, collectImplicitReceivers(lexicalScope))
         }
 
         val fileScope = analysisSession.resolveSession.fileScopeProvider.getFileResolutionScope(originalFile)
-        val compositeScope = Kt1CompositeScope(listOf(Kt1ScopeLexical(fileScope, analysisSession)), token)
+        val compositeScope = SimpleKtCompositeScope(listOf(Kt1ScopeLexical(fileScope, analysisSession)), token)
         return KtScopeContext(compositeScope, collectImplicitReceivers(fileScope))
     }
 
