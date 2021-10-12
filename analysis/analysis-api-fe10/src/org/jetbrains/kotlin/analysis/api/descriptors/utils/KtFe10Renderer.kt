@@ -48,7 +48,7 @@ internal class KtFe10Renderer(
     isDebugText: Boolean = false
 ) {
     private companion object {
-        const val INDENTATION = "    "
+        private val INDENTATION = " ".repeat(4)
 
         val IGNORED_VISIBILITIES: Set<Visibility> = setOf(
             Visibilities.Local,
