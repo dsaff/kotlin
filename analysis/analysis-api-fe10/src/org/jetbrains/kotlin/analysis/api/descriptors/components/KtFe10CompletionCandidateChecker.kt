@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.analysis.api.components.KtExtensionApplicabilityResu
 import org.jetbrains.kotlin.analysis.api.descriptors.KtFe10AnalysisSession
 import org.jetbrains.kotlin.analysis.api.symbols.KtCallableSymbol
 import org.jetbrains.kotlin.analysis.api.tokens.ValidityToken
-import org.jetbrains.kotlin.analysis.api.types.KtSubstitutor
 import org.jetbrains.kotlin.analysis.api.withValidityAssertion
 import org.jetbrains.kotlin.psi.KtExpression
 import org.jetbrains.kotlin.psi.KtFile
@@ -26,7 +25,6 @@ internal class KtFe10CompletionCandidateChecker(override val analysisSession: Kt
         nameExpression: KtSimpleNameExpression,
         possibleExplicitReceiver: KtExpression?
     ): KtExtensionApplicabilityResult = withValidityAssertion {
-        // Not implemented
-        return KtExtensionApplicabilityResult.NonApplicable(KtSubstitutor.Empty(token))
+        throw NotImplementedError("Method is not implemented for FE 1.0")
     }
 }

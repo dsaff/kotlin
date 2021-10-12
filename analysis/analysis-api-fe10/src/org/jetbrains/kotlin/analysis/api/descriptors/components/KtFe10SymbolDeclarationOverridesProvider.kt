@@ -78,7 +78,6 @@ internal class KtFe10SymbolDeclarationOverridesProvider(
     }
 
     override fun getIntersectionOverriddenSymbols(symbol: KtCallableSymbol): Collection<KtCallableSymbol> = withValidityAssertion {
-        // Not implemented
-        return emptyList()
+        throw NotImplementedError("Method is not implemented for FE 1.0")
     }
 }
