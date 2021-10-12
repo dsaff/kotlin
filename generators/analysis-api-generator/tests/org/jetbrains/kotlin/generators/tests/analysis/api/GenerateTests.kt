@@ -97,7 +97,7 @@ fun main(args: Array<String>) {
             }
         }
 
-        testGroup("analysis/analysis-api-descriptors/tests", "analysis/analysis-api/testData") {
+        testGroup("analysis/analysis-api-fe10/tests", "analysis/analysis-api/testData") {
 //            testClass<AbstractKtFe10ResolveCallTest> {
 //                model("analysisSession/resolveCall")
 //            }
