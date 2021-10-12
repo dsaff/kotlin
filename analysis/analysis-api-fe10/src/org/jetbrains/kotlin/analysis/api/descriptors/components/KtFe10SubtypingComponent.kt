@@ -19,7 +19,7 @@ internal class KtFe10SubtypingComponent(override val analysisSession: KtFe10Anal
     override fun isEqualTo(first: KtType, second: KtType): Boolean = withValidityAssertion {
         require(first is KtFe10Type)
         require(second is KtFe10Type)
-        return first.type == second.type
+        return analysisSession.resolveSession.kotlinTypeCheckerOfOwnerModule.equalTypes(first.type, second.type)
     }
 
     override fun isSubTypeOf(subType: KtType, superType: KtType): Boolean = withValidityAssertion {
