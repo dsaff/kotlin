@@ -25,8 +25,8 @@ import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByFqNameTe
 import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByPsiTest
 import org.jetbrains.kotlin.analysis.api.fir.symbols.AbstractFirSymbolByReferenceTest
 import org.jetbrains.kotlin.analysis.api.descriptors.test.components.*
-import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKt1SymbolByFqNameTest
-import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKt1SymbolByReferenceTest
+import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKtFe10SymbolByFqNameTest
+import org.jetbrains.kotlin.analysis.api.descriptors.test.symbols.AbstractKtFe10SymbolByReferenceTest
 import org.jetbrains.kotlin.spec.utils.GeneralConfiguration
 import org.jetbrains.kotlin.spec.utils.tasks.detectDirsWithTestsMapFileOnly
 import org.jetbrains.kotlin.test.generators.generateTestGroupSuiteWithJUnit5
@@ -98,51 +98,51 @@ fun main(args: Array<String>) {
         }
 
         testGroup("analysis/analysis-api-descriptors/tests", "analysis/analysis-api/testData") {
-//            testClass<AbstractKt1ResolveCallTest> {
+//            testClass<AbstractKtFe10ResolveCallTest> {
 //                model("analysisSession/resolveCall")
 //            }
 
-//            testClass<AbstractKt1MemberScopeByFqNameTest> {
+//            testClass<AbstractKtFe10MemberScopeByFqNameTest> {
 //                model("memberScopeByFqName")
 //            }
 
-//            testClass<AbstractKt1FileScopeTest> {
+//            testClass<AbstractKtFe10FileScopeTest> {
 //                model("fileScopeTest", extension = "kt")
 //            }
 
-//            testClass<AbstractKt1SymbolByPsiTest> {
+//            testClass<AbstractKtFe10SymbolByPsiTest> {
 //                model("symbols/symbolByPsi")
 //            }
 
-            testClass<AbstractKt1SymbolByFqNameTest> {
+            testClass<AbstractKtFe10SymbolByFqNameTest> {
                 model("symbols/symbolByFqName")
             }
 
-            testClass<AbstractKt1SymbolByReferenceTest> {
+            testClass<AbstractKtFe10SymbolByReferenceTest> {
                 model("symbols/symbolByReference")
             }
 
-            testClass<AbstractKt1ExpectedExpressionTypeTest> {
+            testClass<AbstractKtFe10ExpectedExpressionTypeTest> {
                 model("components/expectedExpressionType")
             }
 
-            testClass<AbstractKt1OverriddenDeclarationProviderTest> {
+            testClass<AbstractKtFe10OverriddenDeclarationProviderTest> {
                 model("components/overridenDeclarations")
             }
 
-            testClass<AbstractKt1HLExpressionTypeTest> {
+            testClass<AbstractKtFe10HLExpressionTypeTest> {
                 model("components/expressionType")
             }
 
-            testClass<AbstractKt1RendererTest> {
+            testClass<AbstractKtFe10RendererTest> {
                 model("components/declarationRenderer")
             }
 
-//            testClass<AbstractKt1ReferenceResolveTest> {
+//            testClass<AbstractKtFe10ReferenceResolveTest> {
 //                model("referenceResolve", pattern = TestGeneratorUtil.KT_WITHOUT_DOTS_IN_NAME)
 //            }
 
-            testClass<AbstractKt1HasCommonSubtypeTest> {
+            testClass<AbstractKtFe10HasCommonSubtypeTest> {
                 model("components/hasCommonSubtype")
             }
         }

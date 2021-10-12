@@ -9,12 +9,12 @@ import org.jetbrains.kotlin.analysis.api.KtStarProjectionTypeArgument
 import org.jetbrains.kotlin.analysis.api.KtTypeArgument
 import org.jetbrains.kotlin.analysis.api.KtTypeArgumentWithVariance
 import org.jetbrains.kotlin.analysis.api.components.KtDeclarationRendererOptions
-import org.jetbrains.kotlin.analysis.api.descriptors.Kt1AnalysisSession
+import org.jetbrains.kotlin.analysis.api.descriptors.KtFe10AnalysisSession
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.*
-import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.Kt1PsiSymbol
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.KtFe10PsiSymbol
 import org.jetbrains.kotlin.analysis.api.descriptors.types.*
-import org.jetbrains.kotlin.analysis.api.descriptors.types.base.Kt1TypeAndAnnotations
-import org.jetbrains.kotlin.analysis.api.descriptors.utils.Kt1Renderer
+import org.jetbrains.kotlin.analysis.api.descriptors.types.base.KtFe10TypeAndAnnotations
+import org.jetbrains.kotlin.analysis.api.descriptors.utils.KtFe10Renderer
 import org.jetbrains.kotlin.analysis.api.symbols.*
 import org.jetbrains.kotlin.analysis.api.symbols.markers.*
 import org.jetbrains.kotlin.analysis.api.types.KtType
@@ -62,9 +62,9 @@ internal val ClassDescriptor.isInterfaceLike: Boolean
         else -> true
     }
 
-internal fun DeclarationDescriptor.toKtSymbol(analysisSession: Kt1AnalysisSession): KtSymbol? {
+internal fun DeclarationDescriptor.toKtSymbol(analysisSession: KtFe10AnalysisSession): KtSymbol? {
     if (this is ClassDescriptor && kind == ClassKind.ENUM_ENTRY) {
-        return Kt1DescEnumEntrySymbol(this, analysisSession)
+        return KtFe10DescEnumEntrySymbol(this, analysisSession)
     }
 
     return when (this) {
@@ -74,29 +74,29 @@ internal fun DeclarationDescriptor.toKtSymbol(analysisSession: Kt1AnalysisSessio
     }
 }
 
-internal fun ClassifierDescriptor.toKtClassifierSymbol(analysisSession: Kt1AnalysisSession): KtClassifierSymbol? {
+internal fun ClassifierDescriptor.toKtClassifierSymbol(analysisSession: KtFe10AnalysisSession): KtClassifierSymbol? {
     return when (this) {
-        is TypeAliasDescriptor -> Kt1DescTypeAliasSymbol(this, analysisSession)
-        is TypeParameterDescriptor -> Kt1DescTypeParameterSymbol(this, analysisSession)
+        is TypeAliasDescriptor -> KtFe10DescTypeAliasSymbol(this, analysisSession)
+        is TypeParameterDescriptor -> KtFe10DescTypeParameterSymbol(this, analysisSession)
         is ClassDescriptor -> toKtClassSymbol(analysisSession)
         else -> null
     }
 }
 
-internal fun ClassDescriptor.toKtClassSymbol(analysisSession: Kt1AnalysisSession): KtClassOrObjectSymbol? {
+internal fun ClassDescriptor.toKtClassSymbol(analysisSession: KtFe10AnalysisSession): KtClassOrObjectSymbol? {
     return if (DescriptorUtils.isAnonymousObject(this)) {
-        Kt1DescAnonymousObjectSymbol(this, analysisSession)
+        KtFe10DescAnonymousObjectSymbol(this, analysisSession)
     } else {
-        Kt1DescNamedClassOrObjectSymbol(this, analysisSession)
+        KtFe10DescNamedClassOrObjectSymbol(this, analysisSession)
     }
 }
 
-internal fun ConstructorDescriptor.toKtConstructorSymbol(analysisSession: Kt1AnalysisSession): KtConstructorSymbol {
+internal fun ConstructorDescriptor.toKtConstructorSymbol(analysisSession: KtFe10AnalysisSession): KtConstructorSymbol {
     if (this is TypeAliasConstructorDescriptor) {
         return this.underlyingConstructorDescriptor.toKtConstructorSymbol(analysisSession)
     }
 
-    return Kt1DescConstructorSymbol(this, analysisSession)
+    return KtFe10DescConstructorSymbol(this, analysisSession)
 }
 
 internal val CallableMemberDescriptor.ktHasStableParameterNames: Boolean
@@ -109,41 +109,41 @@ internal val CallableMemberDescriptor.ktHasStableParameterNames: Boolean
         }
     }
 
-internal fun CallableDescriptor.toKtCallableSymbol(analysisSession: Kt1AnalysisSession): KtCallableSymbol? {
+internal fun CallableDescriptor.toKtCallableSymbol(analysisSession: KtFe10AnalysisSession): KtCallableSymbol? {
     return when (this) {
-        is PropertyGetterDescriptor -> Kt1DescPropertyGetterSymbol(this, analysisSession)
-        is PropertySetterDescriptor -> Kt1DescPropertySetterSymbol(this, analysisSession)
-        is SamConstructorDescriptor -> Kt1DescSamConstructorSymbol(this, analysisSession)
+        is PropertyGetterDescriptor -> KtFe10DescPropertyGetterSymbol(this, analysisSession)
+        is PropertySetterDescriptor -> KtFe10DescPropertySetterSymbol(this, analysisSession)
+        is SamConstructorDescriptor -> KtFe10DescSamConstructorSymbol(this, analysisSession)
         is ConstructorDescriptor -> toKtConstructorSymbol(analysisSession)
         is FunctionDescriptor -> {
             if (DescriptorUtils.isAnonymousFunction(this)) {
-                Kt1DescAnonymousFunctionSymbol(this, analysisSession)
+                KtFe10DescAnonymousFunctionSymbol(this, analysisSession)
             } else {
-                Kt1DescFunctionSymbol(this, analysisSession)
+                KtFe10DescFunctionSymbol(this, analysisSession)
             }
         }
-        is SyntheticFieldDescriptor -> Kt1DescSyntheticFieldSymbol(this, analysisSession)
-        is LocalVariableDescriptor -> Kt1DescLocalVariableSymbol(this, analysisSession)
-        is ValueParameterDescriptor -> Kt1DescValueParameterSymbol(this, analysisSession)
-        is SyntheticJavaPropertyDescriptor -> Kt1DescSyntheticJavaPropertySymbol(this, analysisSession)
-        is JavaForKotlinOverridePropertyDescriptor -> Kt1DescSyntheticJavaPropertySymbolForOverride(this, analysisSession)
-        is JavaPropertyDescriptor -> Kt1DescJavaFieldSymbol(this, analysisSession)
-        is PropertyDescriptorImpl -> Kt1DescKotlinPropertySymbol(this, analysisSession)
+        is SyntheticFieldDescriptor -> KtFe10DescSyntheticFieldSymbol(this, analysisSession)
+        is LocalVariableDescriptor -> KtFe10DescLocalVariableSymbol(this, analysisSession)
+        is ValueParameterDescriptor -> KtFe10DescValueParameterSymbol(this, analysisSession)
+        is SyntheticJavaPropertyDescriptor -> KtFe10DescSyntheticJavaPropertySymbol(this, analysisSession)
+        is JavaForKotlinOverridePropertyDescriptor -> KtFe10DescSyntheticJavaPropertySymbolForOverride(this, analysisSession)
+        is JavaPropertyDescriptor -> KtFe10DescJavaFieldSymbol(this, analysisSession)
+        is PropertyDescriptorImpl -> KtFe10DescKotlinPropertySymbol(this, analysisSession)
         else -> null
     }
 }
 
-internal fun KotlinType.toKtType(analysisSession: Kt1AnalysisSession): KtType {
+internal fun KotlinType.toKtType(analysisSession: KtFe10AnalysisSession): KtType {
     return when (val unwrappedType = unwrap()) {
-        is FlexibleType -> Kt1FlexibleType(unwrappedType, analysisSession)
-        is DefinitelyNotNullType -> Kt1DefinitelyNotNullType(unwrappedType, analysisSession)
-        is ErrorType -> Kt1ClassErrorType(unwrappedType, analysisSession)
-        is CapturedType -> Kt1CapturedType(unwrappedType, analysisSession)
-        is NewCapturedType -> Kt1NewCapturedType(unwrappedType, analysisSession)
+        is FlexibleType -> KtFe10FlexibleType(unwrappedType, analysisSession)
+        is DefinitelyNotNullType -> KtFe10DefinitelyNotNullType(unwrappedType, analysisSession)
+        is ErrorType -> KtFe10ClassErrorType(unwrappedType, analysisSession)
+        is CapturedType -> KtFe10CapturedType(unwrappedType, analysisSession)
+        is NewCapturedType -> KtFe10NewCapturedType(unwrappedType, analysisSession)
         is SimpleType -> {
             val typeParameterDescriptor = TypeUtils.getTypeParameterDescriptorOrNull(unwrappedType)
             if (typeParameterDescriptor != null) {
-                return Kt1TypeParameterType(unwrappedType, typeParameterDescriptor, analysisSession)
+                return KtFe10TypeParameterType(unwrappedType, typeParameterDescriptor, analysisSession)
             }
 
             val typeConstructor = unwrappedType.constructor
@@ -151,22 +151,22 @@ internal fun KotlinType.toKtType(analysisSession: Kt1AnalysisSession): KtType {
             if (typeConstructor is NewTypeVariableConstructor) {
                 val newTypeParameterDescriptor = typeConstructor.originalTypeParameter
                 return if (newTypeParameterDescriptor != null) {
-                    Kt1TypeParameterType(unwrappedType, newTypeParameterDescriptor, analysisSession)
+                    KtFe10TypeParameterType(unwrappedType, newTypeParameterDescriptor, analysisSession)
                 } else {
-                    Kt1ClassErrorType(ErrorUtils.createErrorType("Unresolved type parameter type") as ErrorType, analysisSession)
+                    KtFe10ClassErrorType(ErrorUtils.createErrorType("Unresolved type parameter type") as ErrorType, analysisSession)
                 }
             }
 
             if (typeConstructor is IntersectionTypeConstructor) {
-                return Kt1IntersectionType(unwrappedType, typeConstructor.supertypes, analysisSession)
+                return KtFe10IntersectionType(unwrappedType, typeConstructor.supertypes, analysisSession)
             }
 
             return when (val typeDeclaration = typeConstructor.declarationDescriptor) {
-                is FunctionClassDescriptor -> Kt1FunctionalType(unwrappedType, typeDeclaration, analysisSession)
-                is ClassDescriptor -> Kt1UsualClassType(unwrappedType, typeDeclaration, analysisSession)
+                is FunctionClassDescriptor -> KtFe10FunctionalType(unwrappedType, typeDeclaration, analysisSession)
+                is ClassDescriptor -> KtFe10UsualClassType(unwrappedType, typeDeclaration, analysisSession)
                 else -> {
                     val errorType = ErrorUtils.createErrorTypeWithCustomConstructor("Unresolved class type", typeConstructor)
-                    Kt1ClassErrorType(errorType as ErrorType, analysisSession)
+                    KtFe10ClassErrorType(errorType as ErrorType, analysisSession)
                 }
             }
 
@@ -175,11 +175,11 @@ internal fun KotlinType.toKtType(analysisSession: Kt1AnalysisSession): KtType {
     }
 }
 
-internal fun KotlinType.toKtTypeAndAnnotations(analysisSession: Kt1AnalysisSession): KtTypeAndAnnotations {
-    return Kt1TypeAndAnnotations(toKtType(analysisSession), this, analysisSession.token)
+internal fun KotlinType.toKtTypeAndAnnotations(analysisSession: KtFe10AnalysisSession): KtTypeAndAnnotations {
+    return KtFe10TypeAndAnnotations(toKtType(analysisSession), this, analysisSession.token)
 }
 
-internal fun TypeProjection.toKtTypeArgument(analysisSession: Kt1AnalysisSession): KtTypeArgument {
+internal fun TypeProjection.toKtTypeArgument(analysisSession: KtFe10AnalysisSession): KtTypeArgument {
     return if (isStarProjection) {
         KtStarProjectionTypeArgument(analysisSession.token)
     } else {
@@ -261,8 +261,8 @@ internal val CallableMemberDescriptor.callableId: CallableId?
 
 internal fun getSymbolDescriptor(symbol: KtSymbol): DeclarationDescriptor? {
     return when (symbol) {
-        is Kt1DescSymbol<*> -> symbol.descriptor
-        is Kt1PsiSymbol<*, *> -> symbol.descriptor
+        is KtFe10DescSymbol<*> -> symbol.descriptor
+        is KtFe10PsiSymbol<*, *> -> symbol.descriptor
         else -> null
     }
 }
@@ -287,13 +287,13 @@ internal fun ClassDescriptor.getSupertypesWithAny(): Collection<KotlinType> {
     return if (hasClassSupertype) supertypes else listOf(builtIns.anyType) + supertypes
 }
 
-internal fun DeclarationDescriptor.render(analysisSession: Kt1AnalysisSession, options: KtDeclarationRendererOptions): String {
-    val renderer = Kt1Renderer(analysisSession, options)
+internal fun DeclarationDescriptor.render(analysisSession: KtFe10AnalysisSession, options: KtDeclarationRendererOptions): String {
+    val renderer = KtFe10Renderer(analysisSession, options)
     val consumer = StringBuilder()
     renderer.render(this, consumer)
     return consumer.toString().trim(' ', '\n', '\t')
 }
 
-internal fun CallableMemberDescriptor.getSymbolPointerSignature(analysisSession: Kt1AnalysisSession): String {
+internal fun CallableMemberDescriptor.getSymbolPointerSignature(analysisSession: KtFe10AnalysisSession): String {
     return render(analysisSession, KtDeclarationRendererOptions.DEFAULT)
 }
