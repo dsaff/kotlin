@@ -10,5 +10,5 @@ import org.jetbrains.kotlin.analysis.api.types.KtSubstitutor
 import org.jetbrains.kotlin.analysis.api.types.KtType
 
 interface KtMapBackedSubstitutor : KtSubstitutor {
-    fun getAsMap(): Map<KtTypeParameterSymbol, KtType>?
+    fun getAsMap(): Map<KtTypeParameterSymbol, KtType>
 }
