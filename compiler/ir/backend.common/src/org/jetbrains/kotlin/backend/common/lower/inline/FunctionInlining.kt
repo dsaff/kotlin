@@ -74,7 +74,7 @@ open class DefaultInlineFunctionResolver(open val context: CommonBackendContext)
 class FunctionInlining(
     val context: CommonBackendContext,
     val inlineFunctionResolver: InlineFunctionResolver,
-    val innerClassesSupport: InnerClassesSupport?
+    val innerClassesSupport: InnerClassesSupport? = null
 ) : IrElementTransformerVoidWithContext(), BodyLoweringPass {
 
     constructor(context: CommonBackendContext) : this(context, DefaultInlineFunctionResolver(context), null)
