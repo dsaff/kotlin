@@ -434,9 +434,7 @@ class FunctionInlining(
                         UNDEFINED_OFFSET,
                         innerClassesSupport.getOuterThisField(parameterClassDeclaration).symbol,
                         outerClassThis.type,
-                        IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, parameter.symbol),
-                        null,
-                        null
+                        IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, parameter.symbol)
                     )
                 )
 
