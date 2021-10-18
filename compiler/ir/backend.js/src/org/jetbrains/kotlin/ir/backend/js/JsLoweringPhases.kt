@@ -13,7 +13,6 @@ import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesInInlineFunc
 import org.jetbrains.kotlin.backend.common.lower.inline.LocalClassesInInlineLambdasLowering
 import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.lower.optimizations.FoldConstantLowering
-import org.jetbrains.kotlin.backend.common.lower.optimizations.PropertyAccessorInlineLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.backend.js.codegen.JsGenerationGranularity
@@ -160,6 +159,12 @@ private val expectDeclarationsRemovingPhase = makeDeclarationTransformerPhase(
     name = "ExpectDeclarationsRemoving",
     description = "Remove expect declaration from module fragment"
 )
+
+private val stringConcatenationLoweringPhase = makeJsModulePhase(
+    ::JsStringConcatenationLowering,
+    name = "JsStringConcatenationLowering",
+    description = "Call toString() for values of some types when concatenating strings"
+).toModuleLowering()
 
 private val lateinitNullableFieldsPhase = makeDeclarationTransformerPhase(
     ::NullableFieldsForLateinitCreationLowering,
@@ -819,6 +824,7 @@ private val loweringList = listOf<Lowering>(
     copyInlineFunctionBodyLoweringPhase,
     removeInlineDeclarationsWithReifiedTypeParametersLoweringPhase,
     createScriptFunctionsPhase,
+    stringConcatenationLoweringPhase,
     callableReferenceLowering,
     singleAbstractMethodPhase,
     tailrecLoweringPhase,

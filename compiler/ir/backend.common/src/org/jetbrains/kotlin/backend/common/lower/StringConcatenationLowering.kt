@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.ir.types.isNullable
 import org.jetbrains.kotlin.ir.types.isNullableAny
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.getToStringFunction
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
@@ -50,7 +51,6 @@ private class StringConcatenationTransformer(val lower: StringConcatenationLower
 
     private val typesWithSpecialAppendFunction = irBuiltIns.primitiveIrTypes + irBuiltIns.stringType
 
-    private val nameToString = Name.identifier("toString")
     private val nameAppend = Name.identifier("append")
 
     private val stringBuilder = context.ir.symbols.stringBuilder.owner
@@ -58,10 +58,6 @@ private class StringConcatenationTransformer(val lower: StringConcatenationLower
     //TODO: calculate and pass string length to the constructor.
     private val constructor = stringBuilder.constructors.single {
         it.valueParameters.size == 0
-    }
-
-    private val toStringFunction = stringBuilder.functions.single {
-        it.valueParameters.size == 0 && it.name == nameToString
     }
 
     private val defaultAppendFunction = stringBuilder.functions.single {
@@ -112,7 +108,7 @@ private class StringConcatenationTransformer(val lower: StringConcatenationLower
                             putValueArgument(0, arg)
                         }
                     }
-                    +irCall(toStringFunction).apply {
+                    +irCall(stringBuilder.getToStringFunction()).apply {
                         dispatchReceiver = irGet(stringBuilderImpl)
                     }
                 }
