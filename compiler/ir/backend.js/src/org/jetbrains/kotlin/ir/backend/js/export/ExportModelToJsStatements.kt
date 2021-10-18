@@ -8,7 +8,11 @@ package org.jetbrains.kotlin.ir.backend.js.export
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsAstUtils
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.defineProperty
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsAssignment
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.prototypeOf
 import org.jetbrains.kotlin.ir.backend.js.utils.IrNamer
+import org.jetbrains.kotlin.ir.backend.js.utils.emptyScope
+import org.jetbrains.kotlin.ir.backend.js.utils.getJsNameOrKotlinName
+import org.jetbrains.kotlin.ir.util.companionObject
 import org.jetbrains.kotlin.js.backend.ast.*
 
 class ExportModelToJsStatements(
@@ -69,6 +73,7 @@ class ExportModelToJsStatements(
             }
 
             is ExportedConstructor -> emptyList()
+            is ExportedConstructSignature -> emptyList()
 
             is ExportedProperty -> {
                 require(namespace != null) { "Only namespaced properties are allowed" }
@@ -101,11 +106,57 @@ class ExportModelToJsStatements(
                     (it as? ExportedProperty)?.takeIf { it.isStatic }
                 }
 
+                val innerClassesAssignments = declaration.nestedClasses
+                    .filter { it.ir.isInner }
+                    .map { it.generateInnerClassAssignmentFor(namespace, declaration) }
+
                 val staticsExport = (staticFunctions + staticProperties + declaration.nestedClasses)
                     .flatMap { generateDeclarationExport(it, newNameSpace) }
 
-                listOf(klassExport) + staticsExport
+                listOf(klassExport) + staticsExport + innerClassesAssignments
             }
         }
+    }
+
+    private fun ExportedClass.generateInnerClassAssignmentFor(namespace: JsNameRef?, klass: ExportedClass): JsStatement {
+        val bindConstructor = JsName("__bind_constructor_", false)
+        val companionObject = ir.companionObject()
+        val outerClassRef = JsNameRef(namer.getNameForStaticDeclaration(klass.ir), namespace)
+        val innerClassRef = namer.getNameForStaticDeclaration(ir).makeRef()
+
+        val blockStatements = mutableListOf<JsStatement>(
+            JsVars(
+                JsVars.JsVar(
+                    bindConstructor, JsInvocation(
+                        JsNameRef("bind", innerClassRef),
+                        JsNullLiteral(),
+                        JsThisRef()
+                    )
+                )
+            )
+        )
+
+        if (companionObject != null) {
+            val companionName = companionObject.getJsNameOrKotlinName().identifier
+            blockStatements.add(
+                jsAssignment(
+                    JsNameRef(companionName, bindConstructor.makeRef()),
+                    JsNameRef(companionName, innerClassRef),
+                ).makeStmt()
+            )
+        }
+
+        blockStatements.add(JsReturn(bindConstructor.makeRef()))
+
+        return defineProperty(
+            prototypeOf(outerClassRef),
+            innerClassRef.ident,
+            JsFunction(
+                emptyScope,
+                JsBlock(*blockStatements.toTypedArray()),
+                "inner class '${innerClassRef.ident}' getter"
+            ),
+            null
+        ).makeStmt()
     }
 }
