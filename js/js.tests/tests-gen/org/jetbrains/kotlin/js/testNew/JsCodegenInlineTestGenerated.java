@@ -2319,6 +2319,16 @@ public class JsCodegenInlineTestGenerated extends AbstractJsCodegenInlineTest {
         public void testInnerInlineFunCapturesOuter() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuter.kt");
         }
+
+        @TestMetadata("innerInlineFunCapturesOuterFunRef.kt")
+        public void testInnerInlineFunCapturesOuterFunRef() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterFunRef.kt");
+        }
+
+        @TestMetadata("innerInlineFunCapturesOuterWithInlineClass.kt")
+        public void testInnerInlineFunCapturesOuterWithInlineClass() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterWithInlineClass.kt");
+        }
     }
 
     @Nested
