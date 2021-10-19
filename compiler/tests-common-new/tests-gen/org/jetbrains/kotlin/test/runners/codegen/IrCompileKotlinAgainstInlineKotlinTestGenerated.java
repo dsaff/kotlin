@@ -2603,6 +2603,18 @@ public class IrCompileKotlinAgainstInlineKotlinTestGenerated extends AbstractIrC
         }
 
         @Test
+        @TestMetadata("innerInlineFunCapturesOuterFunRef.kt")
+        public void testInnerInlineFunCapturesOuterFunRef() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterFunRef.kt");
+        }
+
+        @Test
+        @TestMetadata("innerInlineFunCapturesOuterWithInlineClass.kt")
+        public void testInnerInlineFunCapturesOuterWithInlineClass() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterWithInlineClass.kt");
+        }
+
+        @Test
         @TestMetadata("innerLambda.kt")
         public void testInnerLambda() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerLambda.kt");
