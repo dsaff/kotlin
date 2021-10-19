@@ -242,10 +242,6 @@ fun IrClass.getPropertySetter(name: String): IrSimpleFunctionSymbol? =
     getPropertyDeclaration(name)?.setter?.symbol
         ?: getSimpleFunction("<set-$name>").also { assert(it?.owner?.correspondingPropertySymbol?.owner?.name?.asString() == name) }
 
-fun IrClass.getToStringFunction() = functions.single {
-    it.valueParameters.isEmpty() && it.name.asString() == "toString"
-}
-
 fun IrClassSymbol.getSimpleFunction(name: String): IrSimpleFunctionSymbol? = owner.getSimpleFunction(name)
 fun IrClassSymbol.getPropertyGetter(name: String): IrSimpleFunctionSymbol? = owner.getPropertyGetter(name)
 fun IrClassSymbol.getPropertySetter(name: String): IrSimpleFunctionSymbol? = owner.getPropertySetter(name)

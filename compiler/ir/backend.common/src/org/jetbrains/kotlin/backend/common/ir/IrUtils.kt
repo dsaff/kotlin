@@ -405,6 +405,10 @@ fun IrFunction.isMethodOfAny(): Boolean =
                 else -> false
             }
 
+fun IrClass.getToStringFunction() = functions.single {
+    it.isMethodOfAny() && it.name.asString() == "toString"
+}
+
 fun IrDeclarationContainer.simpleFunctions() = declarations.flatMap {
     when (it) {
         is IrSimpleFunction -> listOf(it)
