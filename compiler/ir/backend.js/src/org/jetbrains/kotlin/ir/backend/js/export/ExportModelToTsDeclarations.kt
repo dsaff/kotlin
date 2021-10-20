@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.ir.backend.js.export
 
+import org.jetbrains.kotlin.ir.backend.js.utils.getJsNameOrKotlinName
 import org.jetbrains.kotlin.ir.backend.js.utils.sanitizeName
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.util.parentAsClass
@@ -106,6 +107,15 @@ fun ExportedDeclaration.toTypeScript(indent: String, prefix: String = ""): Strin
             " $superInterfacesKeyword " + superInterfaces.joinToString(", ") { it.toTypeScript(indent) }
         } else ""
 
+        val members = members.map {
+            if (!ir.isInner || it !is ExportedFunction || !it.isStatic) {
+                it
+            } else {
+                // Remove $outer argument from secondary constructors of inner classes
+                it.copy(parameters = it.parameters.drop(1))
+            }
+        }
+
         val (innerClasses, nonInnerClasses) = nestedClasses.partition { it.ir.isInner }
         val innerClassesProperties = innerClasses.map { it.toReadonlyProperty() }
         val membersString = (members + innerClassesProperties).joinToString("") { it.toTypeScript("$indent    ") + "\n" }
@@ -135,7 +145,8 @@ fun ExportedDeclaration.toTypeScript(indent: String, prefix: String = ""): Strin
 }
 
 fun IrClass.asNestedClassAccess(): String {
-    if (parent !is IrClass) return name.identifier
+    val name = getJsNameOrKotlinName().identifier
+    if (parent !is IrClass) return name
     return "${parentAsClass.asNestedClassAccess()}.$name"
 }
 

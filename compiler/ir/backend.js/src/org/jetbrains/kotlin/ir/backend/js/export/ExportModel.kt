@@ -23,7 +23,7 @@ class ExportedNamespace(
     val declarations: List<ExportedDeclaration>
 ) : ExportedDeclaration()
 
-class ExportedFunction(
+data class ExportedFunction(
     val name: String,
     val returnType: ExportedType,
     val parameters: List<ExportedParameter>,

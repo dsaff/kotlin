@@ -13,12 +13,13 @@ declare namespace JS_TESTS {
                 protected constructor($outer: foo.TestInner, a: string);
                 readonly a: string;
                 readonly concat: string;
-                readonly SecondInner: {
-                    new(a: string): TestInner.Inner.SecondInner;
-                } & typeof TestInner.Inner.SecondInner;
+                static fromNumber(a: number): foo.TestInner.Inner;
+                readonly SecondLayerInner: {
+                    new(a: string): TestInner.Inner.SecondLayerInner;
+                } & typeof TestInner.Inner.SecondLayerInner;
             }
             namespace Inner {
-                class SecondInner {
+                class SecondLayerInner {
                     protected constructor($outer: foo.TestInner.Inner, a: string);
                     readonly a: string;
                     readonly concat: string;

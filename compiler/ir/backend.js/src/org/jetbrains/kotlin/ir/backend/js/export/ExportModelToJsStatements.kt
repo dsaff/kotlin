@@ -92,14 +92,13 @@ class ExportModelToJsStatements(
                     if (namespace == null) {
                         JsExport(name, alias = JsName(declaration.name, false))
                     } else {
-                        jsAssignment(
-                            newNameSpace,
-                            JsNameRef(name)
-                        ).makeStmt()
+                        jsAssignment(newNameSpace, JsNameRef(name)).makeStmt()
                     }
 
                 // These are only used when exporting secondary constructors annotated with @JsName
-                val staticFunctions = declaration.members.filter { it is ExportedFunction && it.isStatic }
+                val staticFunctions = declaration.members
+                    .filter { it is ExportedFunction && it.isStatic }
+                    .takeIf { !declaration.ir.isInner }.orEmpty()
 
                 // Nested objects are exported as static properties
                 val staticProperties = declaration.members.mapNotNull {
@@ -108,7 +107,7 @@ class ExportModelToJsStatements(
 
                 val innerClassesAssignments = declaration.nestedClasses
                     .filter { it.ir.isInner }
-                    .map { it.generateInnerClassAssignmentFor(namespace, declaration) }
+                    .map { it.generateInnerClassAssignment(declaration) }
 
                 val staticsExport = (staticFunctions + staticProperties + declaration.nestedClasses)
                     .flatMap { generateDeclarationExport(it, newNameSpace) }
@@ -118,22 +117,15 @@ class ExportModelToJsStatements(
         }
     }
 
-    private fun ExportedClass.generateInnerClassAssignmentFor(namespace: JsNameRef?, klass: ExportedClass): JsStatement {
-        val bindConstructor = JsName("__bind_constructor_", false)
-        val companionObject = ir.companionObject()
-        val outerClassRef = JsNameRef(namer.getNameForStaticDeclaration(klass.ir), namespace)
+    private fun ExportedClass.generateInnerClassAssignment(outerClass: ExportedClass): JsStatement {
         val innerClassRef = namer.getNameForStaticDeclaration(ir).makeRef()
+        val outerClassRef = namer.getNameForStaticDeclaration(outerClass.ir).makeRef()
+        val companionObject = ir.companionObject()
+        val secondaryConstructors = members.filterIsInstanceAnd<ExportedFunction> { it.isStatic }
+        val bindConstructor = JsName("__bind_constructor_", false)
 
         val blockStatements = mutableListOf<JsStatement>(
-            JsVars(
-                JsVars.JsVar(
-                    bindConstructor, JsInvocation(
-                        JsNameRef("bind", innerClassRef),
-                        JsNullLiteral(),
-                        JsThisRef()
-                    )
-                )
-            )
+            JsVars(JsVars.JsVar(bindConstructor, innerClassRef.bindToThis()))
         )
 
         if (companionObject != null) {
@@ -146,17 +138,35 @@ class ExportModelToJsStatements(
             )
         }
 
+        secondaryConstructors.forEach {
+            val currentFunRef = namer.getNameForStaticDeclaration(it.ir).makeRef()
+            val assignment = jsAssignment(
+                JsNameRef(it.name, bindConstructor.makeRef()),
+                currentFunRef.bindToThis()
+            ).makeStmt()
+
+            blockStatements.add(assignment)
+        }
+
         blockStatements.add(JsReturn(bindConstructor.makeRef()))
 
         return defineProperty(
             prototypeOf(outerClassRef),
-            innerClassRef.ident,
+            name,
             JsFunction(
                 emptyScope,
                 JsBlock(*blockStatements.toTypedArray()),
-                "inner class '${innerClassRef.ident}' getter"
+                "inner class '$name' getter"
             ),
             null
         ).makeStmt()
+    }
+
+    private fun JsNameRef.bindToThis(): JsInvocation {
+        return JsInvocation(
+            JsNameRef("bind", this),
+            JsNullLiteral(),
+            JsThisRef()
+        )
     }
 }
