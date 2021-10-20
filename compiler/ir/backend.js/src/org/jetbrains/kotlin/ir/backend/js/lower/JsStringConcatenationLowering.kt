@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
@@ -48,15 +49,18 @@ private class JsStringConcatenationTransformer(val context: CommonBackendContext
 
     private fun IrExpression.explicitlyConvertedToString(): IrExpression {
         assert(type.shouldExplicitlyConvertToString)
-        val classToStringSymbol = type.getClass()?.getToStringFunction()?.symbol
-        if (!type.isNullable() && classToStringSymbol != null)
-            return JsIrBuilder.buildCall(classToStringSymbol).apply {
-                dispatchReceiver = this@explicitlyConvertedToString
-            }
-        else
-            return JsIrBuilder.buildCall(context.ir.symbols.extensionToString).apply {
+
+        return if (type.isNullable()) {
+            JsIrBuilder.buildCall(context.ir.symbols.extensionToString).apply {
                 extensionReceiver = this@explicitlyConvertedToString
             }
+        } else {
+            val classToStringSymbol =
+                type.getClass()?.getToStringFunction()?.symbol ?: error("No 'toString' function found in type ${type.render()}")
+            JsIrBuilder.buildCall(classToStringSymbol).apply {
+                dispatchReceiver = this@explicitlyConvertedToString
+            }
+        }
     }
 
     private fun IrFunctionSymbol.isStringPlus(): Boolean {
