@@ -7,6 +7,6 @@ class E<T>(val x: T) {
 
 // FILE: 2.kt
 
-value class IC(val s: String)
+inner class IC(val s: String)
 
 fun box(): String = E(IC("OK")).Inner().foo().s

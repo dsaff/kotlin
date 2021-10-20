@@ -425,7 +425,7 @@ class FunctionInlining(
 
             while (parameterClassDeclaration.isInner) {
                 val outerClass = parameterClassDeclaration.parentAsClass
-                val outerClassThis = outerClass.thisReceiver ?: break
+                val outerClassThis = outerClass.thisReceiver ?: error("${outerClass.name.identifier} has a null `thisReceiver` property")
 
                 val parameterToArgument = ParameterToArgument(
                     parameter = outerClassThis,
