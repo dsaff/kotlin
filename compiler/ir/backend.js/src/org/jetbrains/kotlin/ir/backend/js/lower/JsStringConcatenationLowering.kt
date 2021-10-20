@@ -25,7 +25,6 @@ import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
 class JsStringConcatenationLowering(val context: CommonBackendContext) : FileLoweringPass {
@@ -55,25 +54,18 @@ private class JsStringConcatenationTransformer(val context: CommonBackendContext
                 dispatchReceiver = this@explicitlyConvertedToString
             }
         else
-            return JsIrBuilder.buildCall(context.irBuiltIns.extensionToString).apply {
+            return JsIrBuilder.buildCall(context.ir.symbols.extensionToString).apply {
                 extensionReceiver = this@explicitlyConvertedToString
             }
     }
 
     private fun IrFunctionSymbol.isStringPlus(): Boolean {
-        val plusName = Name.identifier("plus")
-        val dispatchReceiver = owner.dispatchReceiverParameter
-        val extensionReceiver = owner.extensionReceiverParameter
-        val plusFunctionCandidates = if (dispatchReceiver != null && dispatchReceiver.type.isString())
-            context.irBuiltIns.findBuiltInClassMemberFunctions(context.irBuiltIns.stringClass, plusName)
-        else if (extensionReceiver != null && extensionReceiver.type.isNullableString())
-            context.irBuiltIns.findFunctions(plusName)
+        val plusSymbol = if (owner.dispatchReceiverParameter?.type?.isString() == true)
+            context.ir.symbols.memberStringPlus
+        else if (owner.extensionReceiverParameter?.type?.isNullableString() == true)
+            context.ir.symbols.extensionStringPlus
         else
             return false
-
-        val plusSymbol =
-            plusFunctionCandidates.firstOrNull { it.owner.valueParameters.size == 1 && it.owner.valueParameters.first().type.isNullableAny() }
-                ?: return false
 
         return this == plusSymbol
     }

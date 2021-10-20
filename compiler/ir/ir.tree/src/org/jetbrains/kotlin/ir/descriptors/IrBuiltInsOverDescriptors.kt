@@ -509,11 +509,20 @@ class IrBuiltInsOverDescriptors(
                 KotlinBuiltIns.isNullableAny(descriptor.extensionReceiverParameter!!.type) && descriptor.valueParameters.size == 0
     }
 
-    override val stringPlus: IrSimpleFunctionSymbol = findFunctions(Name.identifier("plus"), "kotlin").first {
+    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(Name.identifier("plus"), "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
                 KotlinBuiltIns.isStringOrNullableString(descriptor.extensionReceiverParameter!!.type) &&
+                descriptor.valueParameters.size == 1 &&
+                KotlinBuiltIns.isNullableAny(descriptor.valueParameters.first().type)
+    }
+
+    override val memberStringPlus: IrSimpleFunctionSymbol = findBuiltInClassMemberFunctions(stringClass, Name.identifier("plus")).first {
+        val descriptor = it.descriptor
+        descriptor is SimpleFunctionDescriptor && descriptor.extensionReceiverParameter == null &&
+                descriptor.dispatchReceiverParameter != null &&
+                KotlinBuiltIns.isString(descriptor.dispatchReceiverParameter!!.type) &&
                 descriptor.valueParameters.size == 1 &&
                 KotlinBuiltIns.isNullableAny(descriptor.valueParameters.first().type)
     }

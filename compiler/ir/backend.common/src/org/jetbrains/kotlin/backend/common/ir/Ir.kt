@@ -187,7 +187,8 @@ open class BuiltinSymbolsBase(val irBuiltIns: IrBuiltIns, private val symbolTabl
     fun kmutableproperty2(): IrClassSymbol = irBuiltIns.kMutableProperty2Class
 
     val extensionToString: IrSimpleFunctionSymbol get() = irBuiltIns.extensionToString
-    val stringPlus: IrSimpleFunctionSymbol get() = irBuiltIns.stringPlus
+    val extensionStringPlus: IrSimpleFunctionSymbol get() = irBuiltIns.extensionStringPlus
+    val memberStringPlus: IrSimpleFunctionSymbol get() = irBuiltIns.memberStringPlus
 }
 
 // Some symbols below are used in kotlin-native, so they can't be private

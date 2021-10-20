@@ -454,15 +454,26 @@ class IrBuiltInsOverFir(
         }
 
     override val extensionToString: IrSimpleFunctionSymbol by lazy {
-        findFunctions(kotlinPackage, Name.identifier("toString")).first { function ->
+        findFunctions(kotlinPackage, Name.identifier("toString")).single { function ->
             function.owner.extensionReceiverParameter?.let { receiver -> receiver.type == anyNType } ?: false
         }
     }
 
-    override val stringPlus: IrSimpleFunctionSymbol
-        get() = intClass.functions.single {
-            it.owner.name == OperatorNameConventions.PLUS && it.owner.valueParameters[0].type == stringType
+    override val extensionStringPlus: IrSimpleFunctionSymbol by lazy {
+        findFunctions(kotlinPackage, Name.identifier("plus")).single { function ->
+            val isStringExtension =
+                function.owner.extensionReceiverParameter?.let { receiver -> receiver.type == stringType.withHasQuestionMark(true) }
+                    ?: false
+            isStringExtension && function.owner.valueParameters.size == 1 && function.owner.valueParameters[0].type == anyNType
         }
+    }
+
+    override val memberStringPlus: IrSimpleFunctionSymbol by lazy {
+        findBuiltInClassMemberFunctions(stringClass, Name.identifier("plus")).single { function ->
+            val isReceiverString = function.owner.dispatchReceiverParameter?.let { receiver -> receiver.type == stringType } ?: false
+            isReceiverString && function.owner.valueParameters.size == 1 && function.owner.valueParameters[0].type == anyNType
+        }
+    }
 
     private class KotlinPackageFuns(
         val arrayOf: IrSimpleFunctionSymbol,
