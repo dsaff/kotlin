@@ -8,8 +8,10 @@ package org.jetbrains.kotlin.ir.backend.js.export
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.JsAstUtils
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.defineProperty
 import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsAssignment
+import org.jetbrains.kotlin.ir.backend.js.transformers.irToJs.jsElementAccess
 import org.jetbrains.kotlin.ir.backend.js.utils.IrNamer
 import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.util.collectionUtils.filterIsInstanceAnd
 
 class ExportModelToJsStatements(
     private val namer: IrNamer,
@@ -21,19 +23,19 @@ class ExportModelToJsStatements(
         return module.declarations.flatMap { generateDeclarationExport(it, JsNameRef(internalModuleName)) }
     }
 
-    fun generateDeclarationExport(declaration: ExportedDeclaration, namespace: JsNameRef?): List<JsStatement> {
+    fun generateDeclarationExport(declaration: ExportedDeclaration, namespace: JsExpression?): List<JsStatement> {
         return when (declaration) {
             is ExportedNamespace -> {
                 require(namespace != null) { "Only namespaced namespaces are allowed" }
                 val statements = mutableListOf<JsStatement>()
                 val elements = declaration.name.split(".")
                 var currentNamespace = ""
-                var currentRef: JsNameRef = namespace
+                var currentRef: JsExpression = namespace
                 for (element in elements) {
                     val newNamespace = "$currentNamespace$$element"
                     val newNameSpaceRef = namespaceToRefMap.getOrPut(newNamespace) {
                         val varName = JsName(declareNewNamespace(newNamespace), false)
-                        val namespaceRef = JsNameRef(element, currentRef)
+                        val namespaceRef = jsElementAccess(element, currentRef)
                         statements += JsVars(
                             JsVars.JsVar(
                                 varName,
@@ -61,7 +63,7 @@ class ExportModelToJsStatements(
                 } else {
                     listOf(
                         jsAssignment(
-                            JsNameRef(declaration.name, namespace),
+                            jsElementAccess(declaration.name, namespace),
                             JsNameRef(name)
                         ).makeStmt()
                     )
@@ -81,7 +83,7 @@ class ExportModelToJsStatements(
 
             is ExportedClass -> {
                 if (declaration.isInterface) return emptyList()
-                val newNameSpace = JsNameRef(declaration.name, namespace)
+                val newNameSpace = jsElementAccess(declaration.name, namespace)
                 val name = namer.getNameForStaticDeclaration(declaration.ir)
                 val klassExport =
                     if (namespace == null) {
@@ -108,4 +110,5 @@ class ExportModelToJsStatements(
             }
         }
     }
+
 }
