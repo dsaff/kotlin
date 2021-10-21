@@ -454,13 +454,13 @@ class IrBuiltInsOverFir(
         }
 
     override val extensionToString: IrSimpleFunctionSymbol by lazy {
-        findFunctions(kotlinPackage, Name.identifier("toString")).single { function ->
+        findFunctions(kotlinPackage, OperatorNameConventions.TO_STRING).single { function ->
             function.owner.extensionReceiverParameter?.let { receiver -> receiver.type == anyNType } ?: false
         }
     }
 
     override val extensionStringPlus: IrSimpleFunctionSymbol by lazy {
-        findFunctions(kotlinPackage, Name.identifier("plus")).single { function ->
+        findFunctions(kotlinPackage, OperatorNameConventions.PLUS).single { function ->
             val isStringExtension =
                 function.owner.extensionReceiverParameter?.let { receiver -> receiver.type == stringType.withHasQuestionMark(true) }
                     ?: false
@@ -469,7 +469,7 @@ class IrBuiltInsOverFir(
     }
 
     override val memberStringPlus: IrSimpleFunctionSymbol by lazy {
-        findBuiltInClassMemberFunctions(stringClass, Name.identifier("plus")).single { function ->
+        findBuiltInClassMemberFunctions(stringClass, OperatorNameConventions.PLUS).single { function ->
             val isReceiverString = function.owner.dispatchReceiverParameter?.let { receiver -> receiver.type == stringType } ?: false
             isReceiverString && function.owner.valueParameters.size == 1 && function.owner.valueParameters[0].type == anyNType
         }

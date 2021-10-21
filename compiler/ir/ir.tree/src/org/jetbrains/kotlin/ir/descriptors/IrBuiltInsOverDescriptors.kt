@@ -39,6 +39,7 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 @ObsoleteDescriptorBasedAPI
 class IrBuiltInsOverDescriptors(
@@ -502,14 +503,14 @@ class IrBuiltInsOverDescriptors(
             } else null
         }
 
-    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(Name.identifier("toString"), "kotlin").first {
+    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.TO_STRING, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
                 KotlinBuiltIns.isNullableAny(descriptor.extensionReceiverParameter!!.type) && descriptor.valueParameters.size == 0
     }
 
-    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(Name.identifier("plus"), "kotlin").first {
+    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.PLUS, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
@@ -518,7 +519,10 @@ class IrBuiltInsOverDescriptors(
                 KotlinBuiltIns.isNullableAny(descriptor.valueParameters.first().type)
     }
 
-    override val memberStringPlus: IrSimpleFunctionSymbol = findBuiltInClassMemberFunctions(stringClass, Name.identifier("plus")).first {
+    override val memberStringPlus: IrSimpleFunctionSymbol = findBuiltInClassMemberFunctions(
+        stringClass,
+        OperatorNameConventions.PLUS
+    ).first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.extensionReceiverParameter == null &&
                 descriptor.dispatchReceiverParameter != null &&
