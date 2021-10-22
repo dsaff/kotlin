@@ -2603,6 +2603,12 @@ public class IrSerializeCompileKotlinAgainstInlineKotlinTestGenerated extends Ab
         }
 
         @Test
+        @TestMetadata("innerInlineFunCapturesOuterDeep.kt")
+        public void testInnerInlineFunCapturesOuterDeep() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterDeep.kt");
+        }
+
+        @Test
         @TestMetadata("innerInlineFunCapturesOuterFunRef.kt")
         public void testInnerInlineFunCapturesOuterFunRef() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterFunRef.kt");

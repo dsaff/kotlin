@@ -2101,6 +2101,11 @@ public class IrJsCodegenInlineTestGenerated extends AbstractIrJsCodegenInlineTes
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuter.kt");
         }
 
+        @TestMetadata("innerInlineFunCapturesOuterDeep.kt")
+        public void testInnerInlineFunCapturesOuterDeep() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterDeep.kt");
+        }
+
         @TestMetadata("innerInlineFunCapturesOuterFunRef.kt")
         public void testInnerInlineFunCapturesOuterFunRef() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterFunRef.kt");

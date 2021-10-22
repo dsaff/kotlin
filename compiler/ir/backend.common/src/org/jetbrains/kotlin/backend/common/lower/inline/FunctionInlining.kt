@@ -410,18 +410,14 @@ class FunctionInlining(
                 }
         }
 
-        private fun IrValueDeclaration.isThisReceiver(): Boolean = this !is IrVariable && when (val p = parent) {
-            is IrSimpleFunction -> this === p.dispatchReceiverParameter
-            is IrClass -> this === p.thisReceiver
-            else -> false
-        }
 
         private fun ParameterToArgument.andAllOuterClasses(): List<ParameterToArgument> {
             val allParametersReplacements = mutableListOf(this)
-            val valueParameter = parameter as? IrValueParameter ?: return allParametersReplacements
-            if (innerClassesSupport == null || !valueParameter.isThisReceiver()) return allParametersReplacements
 
-            var parameterClassDeclaration = valueParameter.type.classifierOrNull?.owner as? IrClass ?: return allParametersReplacements
+            if (innerClassesSupport == null) return allParametersReplacements
+
+            var currentThisSymbol = parameter.symbol
+            var parameterClassDeclaration = parameter.type.classifierOrNull?.owner as? IrClass ?: return allParametersReplacements
 
             while (parameterClassDeclaration.isInner) {
                 val outerClass = parameterClassDeclaration.parentAsClass
@@ -434,12 +430,13 @@ class FunctionInlining(
                         UNDEFINED_OFFSET,
                         innerClassesSupport.getOuterThisField(parameterClassDeclaration).symbol,
                         outerClassThis.type,
-                        IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, parameter.symbol)
+                        IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, currentThisSymbol)
                     )
                 )
 
                 allParametersReplacements.add(parameterToArgument)
 
+                currentThisSymbol = outerClassThis.symbol
                 parameterClassDeclaration = outerClass
             }
 
