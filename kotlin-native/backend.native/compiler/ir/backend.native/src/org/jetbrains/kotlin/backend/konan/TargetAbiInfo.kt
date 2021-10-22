@@ -58,30 +58,11 @@ object ExtendOnCallerSideTargetAbiInfo : TargetAbiInfo {
 
 sealed class ExtendOnCalleeSideTargetAbiInfo(private val shouldZeroExtBoolean: Boolean) : TargetAbiInfo {
     override fun defaultParameterAttributesForIrType(irType: IrType): List<LlvmParameterAttribute> {
-        return irType.unwrapToPrimitiveOrReference(
-                eachInlinedClass = { _, _ -> },
-                ifPrimitive = { primitiveType, _ ->
-                    when (primitiveType) {
-                        KonanPrimitiveType.BOOLEAN -> if (shouldZeroExtBoolean) {
-                            listOf(LlvmParameterAttribute.ZeroExt)
-                        } else {
-                            emptyList()
-                        }
-                        KonanPrimitiveType.CHAR -> emptyList()
-                        KonanPrimitiveType.BYTE -> emptyList()
-                        KonanPrimitiveType.SHORT -> emptyList()
-                        KonanPrimitiveType.INT -> emptyList()
-                        KonanPrimitiveType.LONG -> emptyList()
-                        KonanPrimitiveType.FLOAT -> emptyList()
-                        KonanPrimitiveType.DOUBLE -> emptyList()
-                        KonanPrimitiveType.NON_NULL_NATIVE_PTR -> emptyList()
-                        KonanPrimitiveType.VECTOR128 -> emptyList()
-                    }
-                },
-                ifReference = {
-                    return emptyList()
-                },
-        )
+        return if (irType.computePrimitiveBinaryTypeOrNull() == PrimitiveBinaryType.BOOLEAN && shouldZeroExtBoolean) {
+            listOf(LlvmParameterAttribute.ZeroExt)
+        } else {
+            emptyList()
+        }
     }
 }
 
@@ -96,6 +77,10 @@ object AAPCS64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoole
 /**
  * Windows x64 ABI.
  * https://docs.microsoft.com/en-us/cpp/build/x64-calling-convention
+ *
+ * Regarding zero-extension of boolean type: I wasn't able to find any documentation about it,
+ * so we follow Clang's behavior here, which in turn follows MSVC.
+ * https://github.com/llvm/llvm-project/blob/1fdec59bffc11ae37eb51a1b9869f0696bfd5312/clang/lib/CodeGen/TargetInfo.cpp#L4234
  */
 object WindowsX64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoolean = true)
 
