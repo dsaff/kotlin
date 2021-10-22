@@ -5848,7 +5848,7 @@ Task fileCheckTest(String name, Closure<FileCheckTest> configureClosure) {
                         srcFiles task.annotatedSource
                         baseDir "$testOutputFileCheck/$name"
                         extraOpts project.globalTestArgs
-                        extraOpts "-Xtemporary-files-dir=$testOutputFileCheck/$name", "-Xsave-llvm-ir", "-Xmeaningful-bridge-names"
+                        extraOpts "-Xtemporary-files-dir=$testOutputFileCheck/$name/$target", "-Xsave-llvm-ir", "-Xmeaningful-bridge-names"
                         if (lib != null) {
                             libraries {
                                 artifact lib
