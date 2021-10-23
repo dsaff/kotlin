@@ -511,13 +511,13 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     val targetAbiInfo: TargetAbiInfo by lazy {
         when {
             config.target == KonanTarget.MINGW_X64 -> {
-                WindowsX64TargetAbiInfo
+                WindowsX64TargetAbiInfo()
             }
             !config.target.family.isAppleFamily && config.target.architecture == Architecture.ARM64 -> {
-                AAPCS64TargetAbiInfo
+                AAPCS64TargetAbiInfo()
             }
             else -> {
-                DefaultTargetAbiInfo
+                DefaultTargetAbiInfo()
             }
         }
     }

@@ -24,44 +24,52 @@ sealed interface TargetAbiInfo {
     fun defaultParameterAttributesForIrType(irType: IrType): List<LlvmParameterAttribute>
 }
 
-object ExtendOnCallerSideTargetAbiInfo : TargetAbiInfo {
+class ExtendOnCallerSideTargetAbiInfo : TargetAbiInfo {
+    private val typeAttributesCache = mutableMapOf<IrType, List<LlvmParameterAttribute>>()
+
     override fun defaultParameterAttributesForIrType(irType: IrType): List<LlvmParameterAttribute> {
         // TODO: We perform type unwrapping twice: one to get the underlying type, and then this one.
         //  Unwrapping is not cheap, so it might affect compilation time.
-        return irType.unwrapToPrimitiveOrReference(
-                eachInlinedClass = { inlinedClass, _ ->
-                    when (inlinedClass.classId) {
-                        UnsignedType.UBYTE.classId -> return listOf(LlvmParameterAttribute.ZeroExt)
-                        UnsignedType.USHORT.classId -> return listOf(LlvmParameterAttribute.ZeroExt)
-                    }
-                },
-                ifPrimitive = { primitiveType, _ ->
-                    when (primitiveType) {
-                        KonanPrimitiveType.BOOLEAN -> listOf(LlvmParameterAttribute.ZeroExt)
-                        KonanPrimitiveType.CHAR -> listOf(LlvmParameterAttribute.ZeroExt)
-                        KonanPrimitiveType.BYTE -> listOf(LlvmParameterAttribute.SignExt)
-                        KonanPrimitiveType.SHORT -> listOf(LlvmParameterAttribute.SignExt)
-                        KonanPrimitiveType.INT -> emptyList()
-                        KonanPrimitiveType.LONG -> emptyList()
-                        KonanPrimitiveType.FLOAT -> emptyList()
-                        KonanPrimitiveType.DOUBLE -> emptyList()
-                        KonanPrimitiveType.NON_NULL_NATIVE_PTR -> emptyList()
-                        KonanPrimitiveType.VECTOR128 -> emptyList()
-                    }
-                },
-                ifReference = {
-                    return emptyList()
-                },
-        )
+        return typeAttributesCache.getOrPut(irType) {
+            irType.unwrapToPrimitiveOrReference(
+                    eachInlinedClass = { inlinedClass, _ ->
+                        when (inlinedClass.classId) {
+                            UnsignedType.UBYTE.classId -> return listOf(LlvmParameterAttribute.ZeroExt)
+                            UnsignedType.USHORT.classId -> return listOf(LlvmParameterAttribute.ZeroExt)
+                        }
+                    },
+                    ifPrimitive = { primitiveType, _ ->
+                        when (primitiveType) {
+                            KonanPrimitiveType.BOOLEAN -> listOf(LlvmParameterAttribute.ZeroExt)
+                            KonanPrimitiveType.CHAR -> listOf(LlvmParameterAttribute.ZeroExt)
+                            KonanPrimitiveType.BYTE -> listOf(LlvmParameterAttribute.SignExt)
+                            KonanPrimitiveType.SHORT -> listOf(LlvmParameterAttribute.SignExt)
+                            KonanPrimitiveType.INT -> emptyList()
+                            KonanPrimitiveType.LONG -> emptyList()
+                            KonanPrimitiveType.FLOAT -> emptyList()
+                            KonanPrimitiveType.DOUBLE -> emptyList()
+                            KonanPrimitiveType.NON_NULL_NATIVE_PTR -> emptyList()
+                            KonanPrimitiveType.VECTOR128 -> emptyList()
+                        }
+                    },
+                    ifReference = {
+                        return emptyList()
+                    },
+            )
+        }
     }
 }
 
 sealed class ExtendOnCalleeSideTargetAbiInfo(private val shouldZeroExtBoolean: Boolean) : TargetAbiInfo {
+    private val typeAttributesCache = mutableMapOf<IrType, List<LlvmParameterAttribute>>()
+
     override fun defaultParameterAttributesForIrType(irType: IrType): List<LlvmParameterAttribute> {
-        return if (shouldZeroExtBoolean && irType.computePrimitiveBinaryTypeOrNull() == PrimitiveBinaryType.BOOLEAN) {
-            listOf(LlvmParameterAttribute.ZeroExt)
-        } else {
-            emptyList()
+        return typeAttributesCache.getOrPut(irType) {
+            if (shouldZeroExtBoolean && irType.computePrimitiveBinaryTypeOrNull() == PrimitiveBinaryType.BOOLEAN) {
+                listOf(LlvmParameterAttribute.ZeroExt)
+            } else {
+                emptyList()
+            }
         }
     }
 }
@@ -72,7 +80,7 @@ sealed class ExtendOnCalleeSideTargetAbiInfo(private val shouldZeroExtBoolean: B
  *
  * Note that Apple uses different its own variant called DarwinPCS.
  */
-object AAPCS64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoolean = false)
+class AAPCS64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoolean = false)
 
 /**
  * Windows x64 ABI.
@@ -82,10 +90,10 @@ object AAPCS64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoole
  * so we follow Clang's behavior here, which in turn follows MSVC.
  * https://github.com/llvm/llvm-project/blob/1fdec59bffc11ae37eb51a1b9869f0696bfd5312/clang/lib/CodeGen/TargetInfo.cpp#L4234
  */
-object WindowsX64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoolean = true)
+class WindowsX64TargetAbiInfo : ExtendOnCalleeSideTargetAbiInfo(shouldZeroExtBoolean = true)
 
 /**
  * "Generic" ABI info that is applicable for the most of our current targets.
  * In time will be replaced by more specific [TargetAbiInfo] inheritors.
  */
-val DefaultTargetAbiInfo: TargetAbiInfo = ExtendOnCallerSideTargetAbiInfo
+typealias DefaultTargetAbiInfo = ExtendOnCallerSideTargetAbiInfo
