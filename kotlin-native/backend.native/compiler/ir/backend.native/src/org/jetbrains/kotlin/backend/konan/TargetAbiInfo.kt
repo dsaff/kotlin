@@ -58,7 +58,7 @@ object ExtendOnCallerSideTargetAbiInfo : TargetAbiInfo {
 
 sealed class ExtendOnCalleeSideTargetAbiInfo(private val shouldZeroExtBoolean: Boolean) : TargetAbiInfo {
     override fun defaultParameterAttributesForIrType(irType: IrType): List<LlvmParameterAttribute> {
-        return if (irType.computePrimitiveBinaryTypeOrNull() == PrimitiveBinaryType.BOOLEAN && shouldZeroExtBoolean) {
+        return if (shouldZeroExtBoolean && irType.computePrimitiveBinaryTypeOrNull() == PrimitiveBinaryType.BOOLEAN) {
             listOf(LlvmParameterAttribute.ZeroExt)
         } else {
             emptyList()
