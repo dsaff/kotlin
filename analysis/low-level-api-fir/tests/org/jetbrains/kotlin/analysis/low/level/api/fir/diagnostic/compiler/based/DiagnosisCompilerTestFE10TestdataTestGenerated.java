@@ -15832,6 +15832,12 @@ public class DiagnosisCompilerTestFE10TestdataTestGenerated extends AbstractDiag
             }
 
             @Test
+            @TestMetadata("inlinedReturnInBranch.kt")
+            public void testInlinedReturnInBranch() throws Exception {
+                runTest("compiler/testData/diagnostics/tests/inline/inlinedReturnInBranch.kt");
+            }
+
+            @Test
             @TestMetadata("invoke.kt")
             public void testInvoke() throws Exception {
                 runTest("compiler/testData/diagnostics/tests/inline/invoke.kt");
