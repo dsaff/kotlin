@@ -2603,6 +2603,12 @@ public class JvmOldAgainstIrBoxInlineTestGenerated extends AbstractJvmOldAgainst
         }
 
         @Test
+        @TestMetadata("innerInlineFunCapturesOuterByAnotherInlineFun.kt")
+        public void testInnerInlineFunCapturesOuterByAnotherInlineFun() throws Exception {
+            runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterByAnotherInlineFun.kt");
+        }
+
+        @Test
         @TestMetadata("innerInlineFunCapturesOuterDeep.kt")
         public void testInnerInlineFunCapturesOuterDeep() throws Exception {
             runTest("compiler/testData/codegen/boxInline/innerClasses/innerInlineFunCapturesOuterDeep.kt");
