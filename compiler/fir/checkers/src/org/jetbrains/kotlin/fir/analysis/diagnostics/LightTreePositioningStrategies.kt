@@ -14,7 +14,9 @@ import com.intellij.util.diff.FlyweightCapableTreeStructure
 import org.jetbrains.kotlin.KtNodeType
 import org.jetbrains.kotlin.KtNodeTypes
 import org.jetbrains.kotlin.diagnostics.PositioningStrategies
+import org.jetbrains.kotlin.fir.FirRealSourceElementKind
 import org.jetbrains.kotlin.fir.FirSourceElement
+import org.jetbrains.kotlin.fir.toFirLightSourceElement
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.lexer.KtTokens.MODALITY_MODIFIERS
 import org.jetbrains.kotlin.lexer.KtTokens.VISIBILITY_MODIFIERS
@@ -1191,6 +1193,17 @@ internal fun FlyweightCapableTreeStructure<LighterASTNode>.inlineModifier(declar
 
 internal fun FlyweightCapableTreeStructure<LighterASTNode>.typeParametersList(declaration: LighterASTNode): LighterASTNode? =
     findChildByType(declaration, KtNodeTypes.TYPE_PARAMETER_LIST)
+
+internal fun FlyweightCapableTreeStructure<LighterASTNode>.annotations(node: LighterASTNode): List<LighterASTNode>? {
+    val typeReference = findChildByType(node, KtNodeTypes.TYPE_REFERENCE) ?: return null
+    val modifiers = modifierList(typeReference) ?: return null
+    return collectDescendantsOfType(modifiers, KtNodeTypes.ANNOTATION_ENTRY)
+}
+
+internal fun FlyweightCapableTreeStructure<LighterASTNode>.userType(node: LighterASTNode): LighterASTNode? {
+    val typeReference = findChildByType(node, KtNodeTypes.TYPE_REFERENCE) ?: return null
+    return findChildByType(typeReference, KtNodeTypes.USER_TYPE)
+}
 
 private fun FlyweightCapableTreeStructure<LighterASTNode>.supertypesList(node: LighterASTNode): LighterASTNode? =
     findChildByType(node, KtNodeTypes.SUPER_TYPE_LIST)
