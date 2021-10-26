@@ -5,9 +5,8 @@
 
 package org.jetbrains.kotlin.fir.types.impl
 
-import org.jetbrains.kotlin.fir.FirImplementationDetail
 import org.jetbrains.kotlin.fir.FirSourceElement
-import org.jetbrains.kotlin.fir.types.FirTypeProjection
+import org.jetbrains.kotlin.fir.types.FirPlaceholderProjection
 import org.jetbrains.kotlin.fir.visitors.*
 
 /*
@@ -15,12 +14,12 @@ import org.jetbrains.kotlin.fir.visitors.*
  * DO NOT MODIFY IT MANUALLY
  */
 
-object FirTypePlaceholderProjection : FirTypeProjection() {
-    override val source: FirSourceElement? get() = null
-
+internal class FirPlaceholderProjectionImpl(
+    override val source: FirSourceElement?,
+) : FirPlaceholderProjection() {
     override fun <R, D> acceptChildren(visitor: FirVisitor<R, D>, data: D) {}
 
-    override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirTypePlaceholderProjection {
+    override fun <D> transformChildren(transformer: FirTransformer<D>, data: D): FirPlaceholderProjectionImpl {
         return this
     }
 }

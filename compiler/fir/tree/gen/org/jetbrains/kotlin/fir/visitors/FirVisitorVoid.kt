@@ -67,6 +67,7 @@ import org.jetbrains.kotlin.fir.expressions.FirTryExpression
 import org.jetbrains.kotlin.fir.expressions.FirConstExpression
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.types.FirStarProjection
+import org.jetbrains.kotlin.fir.types.FirPlaceholderProjection
 import org.jetbrains.kotlin.fir.types.FirTypeProjectionWithVariance
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirCall
@@ -388,6 +389,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     open fun visitStarProjection(starProjection: FirStarProjection) {
         visitElement(starProjection)
+    }
+
+    open fun visitPlaceholderProjection(placeholderProjection: FirPlaceholderProjection) {
+        visitElement(placeholderProjection)
     }
 
     open fun visitTypeProjectionWithVariance(typeProjectionWithVariance: FirTypeProjectionWithVariance) {
@@ -916,6 +921,10 @@ abstract class FirVisitorVoid : FirVisitor<Unit, Nothing?>() {
 
     final override fun visitStarProjection(starProjection: FirStarProjection, data: Nothing?) {
         visitStarProjection(starProjection)
+    }
+
+    final override fun visitPlaceholderProjection(placeholderProjection: FirPlaceholderProjection, data: Nothing?) {
+        visitPlaceholderProjection(placeholderProjection)
     }
 
     final override fun visitTypeProjectionWithVariance(typeProjectionWithVariance: FirTypeProjectionWithVariance, data: Nothing?) {
