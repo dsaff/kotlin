@@ -503,7 +503,7 @@ class IrBuiltInsOverDescriptors(
             } else null
         }
 
-    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.TO_STRING, "kotlin").single {
+    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.TO_STRING, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
@@ -518,7 +518,7 @@ class IrBuiltInsOverDescriptors(
         descriptor is SimpleFunctionDescriptor && descriptor.valueParameters.isEmpty()
     }
 
-    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.PLUS, "kotlin").single {
+    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.PLUS, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
