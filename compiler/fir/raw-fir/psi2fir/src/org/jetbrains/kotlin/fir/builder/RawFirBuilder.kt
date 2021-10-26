@@ -1781,8 +1781,9 @@ open class RawFirBuilder(
                     source = projectionSource
                 }
             }
+            val argumentList = typeProjection.parent as? KtTypeArgumentList
             val typeReference = typeProjection.typeReference
-            if (typeReference?.isPlaceholder == true) {
+            if (argumentList?.parent is KtCallExpression && typeReference?.isPlaceholder == true) {
                 return buildPlaceholderProjection {
                     source = projectionSource
                 }
