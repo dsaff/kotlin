@@ -49,29 +49,42 @@ private object DummyLlvmFunctionAttributeProvider : LlvmFunctionAttributeProvide
  * and we want to create an external declaration for it.
  */
 private class LlvmFunctionAttributesCopier(private val externalFunction: LLVMValueRef) : LlvmFunctionAttributeProvider {
-    override fun addCallSiteAttributes(callSite: LLVMValueRef) {
-        for (index in LLVMAttributeFunctionIndex..LLVMCountParams(externalFunction)) {
-            copyAttributesAtIndex(index) { attributeRef ->
-                LLVMAddCallSiteAttribute(callSite, index, attributeRef)
-            }
+
+    private val paramsCount: Int by lazy { LLVMCountParams(externalFunction) }
+
+    private val attributesForCallSite: List<List<LLVMAttributeRef>> by lazy {
+        attributesForFunctionDeclaration.map {
+            // We don't need attributes like correctly-rounded-divide-sqrt-fp-math or less-precise-fpmad at callsites.
+            // So let's take only enum and integer attributes, should be enough to generate correct calls.
+            it.filter { LLVMIsEnumAttribute(it) != 0 }
         }
     }
 
-    private inline fun copyAttributesAtIndex(index: Int, applyAttribute: (LLVMAttributeRef) -> Unit) {
-        val count = LLVMGetAttributeCountAtIndex(externalFunction, index)
+    private val attributesForFunctionDeclaration: List<List<LLVMAttributeRef>> by lazy {
         memScoped {
-            val attributes = allocArray<LLVMAttributeRefVar>(count)
-            LLVMGetAttributesAtIndex(externalFunction, index, attributes)
-            (0 until count).forEach {
-                applyAttribute(attributes[it]!!)
+            val result = mutableListOf<List<LLVMAttributeRef>>()
+            for (index in LLVMAttributeFunctionIndex..paramsCount) {
+                val count = LLVMGetAttributeCountAtIndex(externalFunction, index)
+                val attributesBuffer = allocArray<LLVMAttributeRefVar>(count)
+                LLVMGetAttributesAtIndex(externalFunction, index, attributesBuffer)
+                result += (0 until count).map { attributesBuffer[it]!! }
+            }
+            result
+        }
+    }
+
+    override fun addCallSiteAttributes(callSite: LLVMValueRef) {
+        attributesForCallSite.withIndex().forEach { (listIndex, attributeList) ->
+            attributeList.forEach { attributeRef ->
+                LLVMAddCallSiteAttribute(callSite, LLVMAttributeFunctionIndex + listIndex, attributeRef)
             }
         }
     }
 
     override fun addFunctionAttributes(function: LLVMValueRef) {
-        for (index in LLVMAttributeFunctionIndex..LLVMCountParams(externalFunction)) {
-            copyAttributesAtIndex(index) { attributeRef ->
-                LLVMAddAttributeAtIndex(function, index, attributeRef)
+        attributesForFunctionDeclaration.withIndex().forEach { (listIndex, attributeList) ->
+            attributeList.forEach { attributeRef ->
+                LLVMAddAttributeAtIndex(function, LLVMAttributeFunctionIndex + listIndex, attributeRef)
             }
         }
     }
