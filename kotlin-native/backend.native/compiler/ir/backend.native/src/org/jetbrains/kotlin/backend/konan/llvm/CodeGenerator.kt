@@ -928,6 +928,10 @@ internal abstract class FunctionGenerationContext(
                     call(context.llvm.llvmEhTypeidFor, listOf(kotlinExceptionRtti.llvm))
             )
 
+            if (switchThreadState) {
+                switchThreadState(Native)
+            }
+
             if (wrapExceptionMode) {
                 val foreignExceptionBlock = basicBlock("foreignException", position()?.start)
                 val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
