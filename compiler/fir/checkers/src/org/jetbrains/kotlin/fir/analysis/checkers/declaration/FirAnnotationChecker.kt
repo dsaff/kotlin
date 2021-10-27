@@ -28,12 +28,12 @@ import org.jetbrains.kotlin.fir.types.customAnnotations
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.StandardClassIds
 
-object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
+object FirAnnotationChecker : FirBasicDeclarationChecker() {
     private val deprecatedClassId = FqName("kotlin.Deprecated")
     private val deprecatedSinceKotlinClassId = FqName("kotlin.DeprecatedSinceKotlin")
 
     override fun check(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         context: CheckerContext,
         reporter: DiagnosticReporter
     ) {
@@ -72,7 +72,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkAnnotationTarget(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         annotation: FirAnnotation,
         context: CheckerContext,
         reporter: DiagnosticReporter
@@ -121,7 +121,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkAnnotationUseSiteTarget(
-        annotated: FirAnnotatedDeclaration,
+        annotated: FirDeclaration,
         annotation: FirAnnotation,
         target: AnnotationUseSiteTarget,
         context: CheckerContext,

@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.descriptors.isInterface
 import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.analysis.checkers.classKind
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirAnnotatedDeclarationChecker
+import org.jetbrains.kotlin.fir.analysis.checkers.declaration.FirBasicDeclarationChecker
 import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.jvm.FirJvmErrors
 import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
@@ -31,8 +31,8 @@ import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.name.StandardClassIds
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
-object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
-    override fun check(declaration: FirAnnotatedDeclaration, context: CheckerContext, reporter: DiagnosticReporter) {
+object FirJvmStaticChecker : FirBasicDeclarationChecker() {
+    override fun check(declaration: FirDeclaration, context: CheckerContext, reporter: DiagnosticReporter) {
         if (declaration is FirConstructor) {
             // WRONG_DECLARATION_TARGET
             return
@@ -48,7 +48,7 @@ object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
             checkAnnotated(declaration, context, reporter, declaration.source)
         }
 
-        fun checkIfAnnotated(it: FirAnnotatedDeclaration) {
+        fun checkIfAnnotated(it: FirDeclaration) {
             if (!it.hasAnnotation(StandardClassIds.Annotations.JvmStatic)) {
                 return
             }
@@ -63,7 +63,7 @@ object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkAnnotated(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         context: CheckerContext,
         reporter: DiagnosticReporter,
         targetSource: FirSourceElement?,
@@ -113,7 +113,7 @@ object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkForInterface(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         context: CheckerContext,
         reporter: DiagnosticReporter,
         targetSource: FirSourceElement?,
@@ -195,7 +195,7 @@ object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkStaticOnConstOrJvmField(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         context: CheckerContext,
         reporter: DiagnosticReporter,
         targetSource: FirSourceElement?,
@@ -239,11 +239,11 @@ object FirJvmStaticChecker : FirAnnotatedDeclarationChecker() {
 
     private fun FirClassLikeSymbol<*>.isCompanion() = safeAs<FirRegularClassSymbol>()?.isCompanion == true
 
-    private fun FirAnnotatedDeclaration.hasAnnotationNamedAs(classId: ClassId): Boolean {
+    private fun FirDeclaration.hasAnnotationNamedAs(classId: ClassId): Boolean {
         return findAnnotation(classId) != null
     }
 
-    private fun FirAnnotatedDeclaration.findAnnotation(classId: ClassId): FirAnnotation? {
+    private fun FirDeclaration.findAnnotation(classId: ClassId): FirAnnotation? {
         return annotations.firstOrNull {
             it.annotationTypeRef.coneType.classId == classId
         }

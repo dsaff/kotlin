@@ -367,7 +367,7 @@ private fun lowerThanBound(context: ConeInferenceContext, argument: ConeKotlinTy
 }
 
 fun FirMemberDeclaration.isInlineOnly(): Boolean =
-    isInline && (this as FirAnnotatedDeclaration).hasAnnotation(INLINE_ONLY_ANNOTATION_CLASS_ID)
+    isInline && hasAnnotation(INLINE_ONLY_ANNOTATION_CLASS_ID)
 
 fun isSubtypeForTypeMismatch(context: ConeInferenceContext, subtype: ConeKotlinType, supertype: ConeKotlinType): Boolean {
     val subtypeFullyExpanded = subtype.fullyExpandedType(context.session)

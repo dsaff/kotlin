@@ -79,11 +79,11 @@ fun FirClassLikeSymbol<*>.getAllowedAnnotationTargets(): Set<KotlinTarget> {
     }
 }
 
-fun FirAnnotatedDeclaration.getRetentionAnnotation(): FirAnnotation? {
+fun FirDeclaration.getRetentionAnnotation(): FirAnnotation? {
     return getAnnotationByClassId(StandardClassIds.Annotations.Retention)
 }
 
-fun FirAnnotatedDeclaration.getTargetAnnotation(): FirAnnotation? {
+fun FirDeclaration.getTargetAnnotation(): FirAnnotation? {
     return getAnnotationByClassId(StandardClassIds.Annotations.Target)
 }
 

@@ -28,10 +28,6 @@ object FirJvmNameChecker : FirBasicDeclarationChecker() {
     private val NAME = Name.identifier("name")
 
     override fun check(declaration: FirDeclaration, context: CheckerContext, reporter: DiagnosticReporter) {
-        if (declaration !is FirAnnotatedDeclaration) {
-            return
-        }
-
         val jvmName = declaration.findJvmNameAnnotation() ?: return
         val name = jvmName.findArgumentByName(NAME) ?: return
 
@@ -60,7 +56,7 @@ object FirJvmNameChecker : FirBasicDeclarationChecker() {
         }
     }
 
-    private fun FirAnnotatedDeclaration.findJvmNameAnnotation(): FirAnnotation? {
+    private fun FirDeclaration.findJvmNameAnnotation(): FirAnnotation? {
         return annotations.firstOrNull {
             it.annotationTypeRef.coneType.classId == StandardClassIds.Annotations.JvmName
         }
