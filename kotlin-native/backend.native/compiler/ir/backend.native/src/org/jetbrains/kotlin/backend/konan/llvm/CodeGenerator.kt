@@ -888,11 +888,6 @@ internal abstract class FunctionGenerationContext(
         }
         call(context.llvm.setCurrentFrameFunction, listOf(slotsPhi!!))
         setCurrentFrameIsCalled = true
-        if (context.memoryModel == MemoryModel.EXPERIMENTAL) {
-            if (!forbidRuntime) {
-                call(context.llvm.Kotlin_mm_safePointExceptionUnwind, emptyList())
-            }
-        }
 
         return landingpad
     }
@@ -1435,6 +1430,7 @@ internal abstract class FunctionGenerationContext(
                             exprCount     = 2)
                 }
             }
+            handlePrologueExperimentalMM()
             br(localsInitBb)
         }
 
@@ -1476,7 +1472,7 @@ internal abstract class FunctionGenerationContext(
                 }
 
                 releaseVars()
-                handleEpilogueForExperimentalMM(context.llvm.Kotlin_mm_safePointExceptionUnwind)
+                switchThreadStateForExperimentalMM()
                 LLVMBuildResume(builder, landingpad)
             }
         }
@@ -1550,18 +1546,19 @@ internal abstract class FunctionGenerationContext(
 
     protected fun onReturn() {
         releaseVars()
-        handleEpilogueForExperimentalMM(context.llvm.Kotlin_mm_safePointFunctionEpilogue)
+        switchThreadStateForExperimentalMM()
     }
 
-    private fun handleEpilogueForExperimentalMM(safePointFunction: LLVMValueRef) {
-        if (context.memoryModel == MemoryModel.EXPERIMENTAL) {
-            if (!forbidRuntime) {
-                call(safePointFunction, emptyList())
-            }
-            if (switchToRunnable) {
-                check(!forbidRuntime) { "Generating a bridge when runtime is forbidden" }
-                switchThreadState(Native)
-            }
+    private fun handlePrologueExperimentalMM() {
+        if (context.memoryModel == MemoryModel.EXPERIMENTAL && !forbidRuntime) {
+            call(context.llvm.Kotlin_mm_safePointFunctionPrologue, emptyList())
+        }
+    }
+
+    private fun switchThreadStateForExperimentalMM() {
+        if (context.memoryModel == MemoryModel.EXPERIMENTAL && switchToRunnable) {
+            check(!forbidRuntime) { "Generating a bridge when runtime is forbidden" }
+            switchThreadState(Native)
         }
     }
 
