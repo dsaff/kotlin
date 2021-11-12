@@ -203,6 +203,10 @@ def construct_cmake_flags(
 
     return cmake_args
 
+def change_dir(target, dry_run):
+    print("cd %s" % target)
+    if not dry_run:
+        os.chdir(target)
 
 def run_command(command: List[str], dry_run):
     """
@@ -355,10 +359,10 @@ def build_distribution(args):
             distribution_components=args.distribution_components
         )
 
-        os.chdir(build_dir)
+        change_dir(build_dir, args.dry_run)
         for command in commands:
             run_command(command, args.dry_run)
-        os.chdir(current_dir)
+        change_dir(current_dir, args.dry_run)
         bootstrap_path = install_path
 
     if not args.save_temporary_files:
