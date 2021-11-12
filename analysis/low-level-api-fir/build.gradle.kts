@@ -18,9 +18,11 @@ dependencies {
     api(project(":compiler:backend.common.jvm"))
     api(project(":analysis:analysis-api-impl-barebone"))
     testApi(project(":analysis:analysis-api-fir"))
+    implementation(project(":compiler:frontend.common"))
     implementation(project(":compiler:ir.psi2ir"))
     implementation(project(":compiler:fir:entrypoint"))
     implementation(project(":analysis:analysis-api-providers"))
+    implementation(project(":analysis:analysis-internal-utils"))
 
     api(intellijCoreDep()) { includeJars("intellij-core", "guava", rootProject = rootProject) }
 
@@ -38,6 +40,8 @@ dependencies {
     testApiJUnit5()
     testApi(project(":kotlin-reflect"))
     testImplementation(project(":analysis:symbol-light-classes"))
+
+    testRuntimeOnly(project(":core:descriptors.runtime"))
 
     testApi(intellijDep()) {
         includeJars(

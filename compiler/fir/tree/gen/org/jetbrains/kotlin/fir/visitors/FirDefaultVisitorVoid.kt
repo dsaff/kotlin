@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRefsOwner
 import org.jetbrains.kotlin.fir.declarations.FirTypeParametersOwner
-import org.jetbrains.kotlin.fir.declarations.FirAnnotatedDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirTypedDeclaration
@@ -67,6 +66,7 @@ import org.jetbrains.kotlin.fir.expressions.FirTryExpression
 import org.jetbrains.kotlin.fir.expressions.FirConstExpression
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.types.FirStarProjection
+import org.jetbrains.kotlin.fir.types.FirPlaceholderProjection
 import org.jetbrains.kotlin.fir.types.FirTypeProjectionWithVariance
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirCall
@@ -152,6 +152,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
 
     override fun visitExpression(expression: FirExpression)  = visitStatement(expression)
 
+    override fun visitDeclaration(declaration: FirDeclaration)  = visitAnnotationContainer(declaration)
+
     override fun visitTypeParametersOwner(typeParametersOwner: FirTypeParametersOwner)  = visitTypeParameterRefsOwner(typeParametersOwner)
 
     override fun visitTypedDeclaration(typedDeclaration: FirTypedDeclaration)  = visitMemberDeclaration(typedDeclaration)
@@ -162,7 +164,7 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
 
     override fun visitEnumEntry(enumEntry: FirEnumEntry)  = visitVariable(enumEntry)
 
-    override fun visitFile(file: FirFile)  = visitAnnotatedDeclaration(file)
+    override fun visitFile(file: FirFile)  = visitDeclaration(file)
 
     override fun visitAnonymousFunctionExpression(anonymousFunctionExpression: FirAnonymousFunctionExpression)  = visitExpression(anonymousFunctionExpression)
 
@@ -189,6 +191,8 @@ abstract class FirDefaultVisitorVoid : FirVisitorVoid() {
     override fun <T> visitConstExpression(constExpression: FirConstExpression<T>)  = visitExpression(constExpression)
 
     override fun visitStarProjection(starProjection: FirStarProjection)  = visitTypeProjection(starProjection)
+
+    override fun visitPlaceholderProjection(placeholderProjection: FirPlaceholderProjection)  = visitTypeProjection(placeholderProjection)
 
     override fun visitTypeProjectionWithVariance(typeProjectionWithVariance: FirTypeProjectionWithVariance)  = visitTypeProjection(typeProjectionWithVariance)
 

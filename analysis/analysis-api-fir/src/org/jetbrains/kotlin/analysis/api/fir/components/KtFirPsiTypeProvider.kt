@@ -13,9 +13,11 @@ import com.intellij.psi.impl.compiled.SignatureParsing
 import com.intellij.psi.impl.compiled.StubBuildingVisitor
 import org.jetbrains.kotlin.analysis.api.components.KtPsiTypeProvider
 import org.jetbrains.kotlin.analysis.api.fir.KtFirAnalysisSession
+import org.jetbrains.kotlin.analysis.api.fir.types.KtFirType
 import org.jetbrains.kotlin.analysis.api.fir.types.PublicTypeApproximator
 import org.jetbrains.kotlin.analysis.api.tokens.ValidityToken
 import org.jetbrains.kotlin.analysis.api.types.KtType
+import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
 import org.jetbrains.kotlin.analysis.api.withValidityAssertion
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.FirModuleResolveState
 import org.jetbrains.kotlin.analysis.low.level.api.fir.api.withFirDeclaration
@@ -32,14 +34,16 @@ import org.jetbrains.kotlin.fir.backend.jvm.jvmTypeMapper
 import org.jetbrains.kotlin.fir.declarations.FirClass
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.utils.superConeTypes
-import org.jetbrains.kotlin.fir.psi
 import org.jetbrains.kotlin.fir.resolve.fullyExpandedType
 import org.jetbrains.kotlin.fir.resolve.substitution.AbstractConeSubstitutor
 import org.jetbrains.kotlin.fir.resolve.toSymbol
 import org.jetbrains.kotlin.fir.symbols.impl.FirClassSymbol
 import org.jetbrains.kotlin.fir.types.*
 import org.jetbrains.kotlin.load.kotlin.TypeMappingMode
+import org.jetbrains.kotlin.load.kotlin.getOptimalModeForReturnType
+import org.jetbrains.kotlin.load.kotlin.getOptimalModeForValueParameter
 import org.jetbrains.kotlin.name.SpecialNames
+import org.jetbrains.kotlin.psi
 import org.jetbrains.kotlin.psi.psiUtil.parents
 import org.jetbrains.kotlin.types.model.SimpleTypeMarker
 import java.text.StringCharacterIterator
@@ -52,9 +56,30 @@ internal class KtFirPsiTypeProvider(
     override fun asPsiType(
         type: KtType,
         useSitePosition: PsiElement,
-        mode: TypeMappingMode,
+        mode: KtTypeMappingMode,
+        isAnnotationMethod: Boolean,
     ): PsiType? = withValidityAssertion {
-        type.coneType.asPsiType(rootModuleSession, analysisSession.firResolveState, mode, useSitePosition)
+        type.coneType.asPsiType(
+            rootModuleSession,
+            analysisSession.firResolveState,
+            mode.toTypeMappingMode(type, isAnnotationMethod),
+            useSitePosition
+        )
+    }
+
+    private fun KtTypeMappingMode.toTypeMappingMode(type: KtType, isAnnotationMethod: Boolean): TypeMappingMode {
+        require(type is KtFirType)
+        return when (this) {
+            KtTypeMappingMode.DEFAULT -> TypeMappingMode.DEFAULT
+            KtTypeMappingMode.DEFAULT_UAST -> TypeMappingMode.DEFAULT_UAST
+            KtTypeMappingMode.GENERIC_ARGUMENT -> TypeMappingMode.GENERIC_ARGUMENT
+            KtTypeMappingMode.SUPER_TYPE -> TypeMappingMode.SUPER_TYPE
+            KtTypeMappingMode.SUPER_TYPE_KOTLIN_COLLECTIONS_AS_IS -> TypeMappingMode.SUPER_TYPE_KOTLIN_COLLECTIONS_AS_IS
+            KtTypeMappingMode.RETURN_TYPE ->
+                rootModuleSession.jvmTypeMapper.typeContext.getOptimalModeForReturnType(type.coneType, isAnnotationMethod)
+            KtTypeMappingMode.VALUE_PARAMETER ->
+                rootModuleSession.jvmTypeMapper.typeContext.getOptimalModeForValueParameter(type.coneType)
+        }
     }
 }
 
@@ -73,24 +98,32 @@ private fun ConeKotlinType.simplifyType(
         currentType = currentType.fullyExpandedType(session)
         currentType = currentType.upperBoundIfFlexible()
         currentType = substitutor.substituteOrSelf(currentType)
-        if (shouldHideLocalType(visibilityForApproximation, isInlineFunction)) {
-            val localTypes: List<ConeKotlinType> = if (isLocal(session)) listOf(this) else {
-                typeArguments.mapNotNull {
-                    if (it is ConeKotlinTypeProjection && it.type.isLocal(session)) {
-                        it.type
-                    } else null
-                }
-            }
-            val unavailableLocalTypes = localTypes.filterNot { it.isLocalButAvailableAtPosition(session, useSitePosition) }
-            // Need to approximate if there are local types that are not available in this scope
-            val needsApproximation = localTypes.isNotEmpty() && unavailableLocalTypes.isNotEmpty()
-            if (needsApproximation) {
-                // TODO: can we approximate local types in type arguments *selectively* ?
-                currentType = PublicTypeApproximator.approximateTypeToPublicDenotable(currentType, session) ?: currentType
-            }
-        }
+        val needLocalTypeApproximation = needLocalTypeApproximation(visibilityForApproximation, isInlineFunction, session, useSitePosition)
+        // TODO: can we approximate local types in type arguments *selectively* ?
+        currentType = PublicTypeApproximator.approximateTypeToPublicDenotable(currentType, session, needLocalTypeApproximation)
+            ?: currentType
+
     } while (oldType !== currentType)
     return currentType
+}
+
+private fun ConeKotlinType.needLocalTypeApproximation(
+    visibilityForApproximation: Visibility,
+    isInlineFunction: Boolean,
+    session: FirSession,
+    useSitePosition: PsiElement
+): Boolean {
+    if (!shouldHideLocalType(visibilityForApproximation, isInlineFunction)) return false
+    val localTypes: List<ConeKotlinType> = if (isLocal(session)) listOf(this) else {
+        typeArguments.mapNotNull {
+            if (it is ConeKotlinTypeProjection && it.type.isLocal(session)) {
+                it.type
+            } else null
+        }
+    }
+    val unavailableLocalTypes = localTypes.filterNot { it.isLocalButAvailableAtPosition(session, useSitePosition) }
+    // Need to approximate if there are local types that are not available in this scope
+    return localTypes.isNotEmpty() && unavailableLocalTypes.isNotEmpty()
 }
 
 // Mimic FirDeclaration.visibilityForApproximation

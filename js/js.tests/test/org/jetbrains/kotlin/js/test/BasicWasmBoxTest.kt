@@ -86,6 +86,11 @@ abstract class BasicWasmBoxTest(
                 }
             }
 
+            val additionalJsFile = filePath.removeSuffix(".kt") + ".js"
+            if (File(additionalJsFile).exists()) {
+                jsFilesBefore += additionalJsFile
+            }
+
             val localCommonFile = file.parent + "/" + COMMON_FILES_NAME + "." + KotlinFileType.EXTENSION
             val localCommonFiles = if (File(localCommonFile).exists()) listOf(localCommonFile) else emptyList()
 
@@ -216,9 +221,10 @@ abstract class BasicWasmBoxTest(
             wasmInstance.exports.__init();
             wasmInstance.exports.startUnitTests?.();
 
-            const actualResult = importStringFromWasm(wasmInstance.exports.box());
+            const actualResult = wasmInstance.exports.box();
             if (actualResult !== "OK")
                 throw `Wrong box result '${'$'}{actualResult}'; Expected "OK"`;
+            console.log("Test passed!");    
             """.trimIndent()
 
         directory.mkdirs()

@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.test.generators
 
 import org.jetbrains.kotlin.generators.generateTestGroupSuiteWithJUnit5
 import org.jetbrains.kotlin.generators.util.TestGeneratorUtil
-import org.jetbrains.kotlin.js.testNew.*
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.runners.*
 import org.jetbrains.kotlin.test.runners.codegen.*
@@ -222,6 +221,14 @@ fun generateJUnit5CompilerTests(args: Array<String>) {
 
             testClass<AbstractIrInterpreterAfterPsi2IrTest> {
                 model("ir/interpreter", excludeDirs = listOf("helpers"))
+            }
+
+            testClass<AbstractFirSteppingTest> {
+                model("debug/stepping")
+            }
+
+            testClass<AbstractFirLocalVariableTest> {
+                model("debug/localVariables")
             }
         }
 

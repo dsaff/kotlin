@@ -70,7 +70,8 @@ open class FirBodyResolveTransformer(
                     typeRef,
                     ScopeClassDeclaration(
                         components.createCurrentScopeList(),
-                        context.topClassDeclaration
+                        context.containingClassDeclarations,
+                        context.containers.lastOrNull { it is FirTypeParameterRefsOwner && it !is FirAnonymousFunction }
                     )
                 )
             }

@@ -5,6 +5,9 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
+import org.jetbrains.kotlin.KtSourceElement
+import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
@@ -26,9 +29,9 @@ class FirSpecificTypeResolverTransformer(
     var areBareTypesAllowed: Boolean = false
 
     @OptIn(PrivateForInline::class)
-    inline fun <R> withAllowedBareTypes(block: () -> R): R {
+    inline fun <R> withBareTypes(allowed: Boolean = true, block: () -> R): R {
         val oldValue = areBareTypesAllowed
-        areBareTypesAllowed = true
+        areBareTypesAllowed = allowed
         return try {
             block()
         } finally {
@@ -69,8 +72,19 @@ class FirSpecificTypeResolverTransformer(
     override fun transformTypeRef(typeRef: FirTypeRef, data: ScopeClassDeclaration): FirResolvedTypeRef {
         val scopeOwnerLookupNames = data.scopes.flatMap { it.scopeOwnerLookupNames }
         session.lookupTracker?.recordTypeLookup(typeRef, scopeOwnerLookupNames, currentFile?.source)
-        typeRef.transformChildren(this, data)
-        return transformType(typeRef, typeResolver.resolveType(typeRef, data, areBareTypesAllowed, isOperandOfIsOperator))
+        withBareTypes(allowed = false) {
+            typeRef.transformChildren(this, data)
+        }
+        return transformType(
+            typeRef,
+            typeResolver.resolveType(
+                typeRef,
+                data,
+                areBareTypesAllowed,
+                isOperandOfIsOperator,
+                currentFile,
+            )
+        )
     }
 
     @OptIn(PrivateForInline::class)
@@ -81,7 +95,13 @@ class FirSpecificTypeResolverTransformer(
         functionTypeRef.transformChildren(this, data)
         val scopeOwnerLookupNames = data.scopes.flatMap { it.scopeOwnerLookupNames }
         session.lookupTracker?.recordTypeLookup(functionTypeRef, scopeOwnerLookupNames, currentFile?.source)
-        val resolvedType = typeResolver.resolveType(functionTypeRef, data, areBareTypesAllowed, isOperandOfIsOperator).takeIfAcceptable()
+        val resolvedType = typeResolver.resolveType(
+            functionTypeRef,
+            data,
+            areBareTypesAllowed,
+            isOperandOfIsOperator,
+            currentFile,
+        ).takeIfAcceptable()
         return if (resolvedType != null && resolvedType !is ConeClassErrorType) {
             buildResolvedTypeRef {
                 source = functionTypeRef.source
@@ -110,10 +130,10 @@ class FirSpecificTypeResolverTransformer(
             buildErrorTypeRef {
                 val typeRefSourceKind = typeRef.source?.kind
                 val diagnosticSource = resolvedType.diagnostic.safeAs<ConeUnexpectedTypeArgumentsError>()
-                    ?.source.safeAs<FirSourceElement>()
+                    ?.source.safeAs<KtSourceElement>()
 
                 source = if (diagnosticSource != null) {
-                    if (typeRefSourceKind is FirFakeSourceElementKind) {
+                    if (typeRefSourceKind is KtFakeSourceElementKind) {
                         diagnosticSource.fakeElement(typeRefSourceKind)
                     } else {
                         diagnosticSource

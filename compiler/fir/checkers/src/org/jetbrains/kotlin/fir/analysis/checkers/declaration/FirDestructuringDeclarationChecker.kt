@@ -5,12 +5,12 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.KtNodeTypes
-import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.FirProperty
 import org.jetbrains.kotlin.fir.declarations.FirResolvePhase
 import org.jetbrains.kotlin.fir.declarations.FirValueParameter
@@ -89,7 +89,7 @@ object FirDestructuringDeclarationChecker : FirPropertyChecker() {
     }
 
     private fun checkInitializer(
-        source: FirSourceElement,
+        source: KtSourceElement,
         initializer: FirExpression?,
         reporter: DiagnosticReporter,
         context: CheckerContext
@@ -106,7 +106,7 @@ object FirDestructuringDeclarationChecker : FirPropertyChecker() {
     }
 
     private fun checkComponentCall(
-        source: FirSourceElement,
+        source: KtSourceElement,
         destructuringDeclarationType: ConeKotlinType,
         reference: FirErrorNamedReference,
         property: FirProperty,

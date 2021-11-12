@@ -6,8 +6,9 @@
 package org.jetbrains.kotlin.js.testNew
 
 import org.jetbrains.kotlin.js.testNew.converters.ClassicJsBackendFacade
-import org.jetbrains.kotlin.js.testNew.converters.RecompileModuleJsBackendFacade
+import org.jetbrains.kotlin.js.testNew.converters.incremental.RecompileModuleJsBackendFacade
 import org.jetbrains.kotlin.js.testNew.handlers.*
+import org.jetbrains.kotlin.js.testNew.utils.JsIncrementalEnvironmentConfigurator
 import org.jetbrains.kotlin.test.Constructor
 import org.jetbrains.kotlin.test.TargetBackend
 import org.jetbrains.kotlin.test.backend.classic.ClassicBackendInput
@@ -23,7 +24,7 @@ import org.jetbrains.kotlin.test.services.configuration.JsEnvironmentConfigurato
 abstract class AbstractJsTest(
     pathToTestDir: String,
     testGroupOutputDirPrefix: String,
-) : AbstractJsBlackBoxCodegenTestBase<ClassicFrontendOutputArtifact, ClassicBackendInput>(
+) : AbstractJsBlackBoxCodegenTestBase<ClassicFrontendOutputArtifact, ClassicBackendInput, BinaryArtifacts.Js>(
     FrontendKinds.ClassicFrontend, TargetBackend.JS, pathToTestDir, testGroupOutputDirPrefix
 ) {
     override val frontendFacade: Constructor<FrontendFacade<ClassicFrontendOutputArtifact>>
@@ -35,17 +36,25 @@ abstract class AbstractJsTest(
     override val backendFacade: Constructor<BackendFacade<ClassicBackendInput, BinaryArtifacts.Js>>
         get() = ::ClassicJsBackendFacade
 
+    override val afterBackendFacade: Constructor<AbstractTestFacade<BinaryArtifacts.Js, BinaryArtifacts.Js>>?
+        get() = null
+
     override val recompileFacade: Constructor<AbstractTestFacade<BinaryArtifacts.Js, BinaryArtifacts.Js>>
         get() = { RecompileModuleJsBackendFacade(it, frontendFacade, frontendToBackendConverter) }
 
     override fun configure(builder: TestConfigurationBuilder) {
         super.configure(builder)
         with(builder) {
+            useConfigurators(
+                ::JsIncrementalEnvironmentConfigurator
+            )
+
             configureJsArtifactsHandlersStep {
                 useHandlers(
                     ::JsTranslationResultHandler,
                     ::JsAstHandler,
                     ::JsSourceMapHandler,
+                    ::JsRecompiledArtifactsIdentityHandler,
                 )
             }
         }

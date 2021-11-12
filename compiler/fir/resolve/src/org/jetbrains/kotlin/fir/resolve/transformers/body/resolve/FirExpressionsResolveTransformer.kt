@@ -5,9 +5,12 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.utils.isLocal
 import org.jetbrains.kotlin.fir.diagnostics.*
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.expressions.builder.buildErrorExpression
@@ -214,10 +217,10 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
                 return markSuperReferenceError(diagnostic, superReferenceContainer, superReference)
             }
             superTypeRef is FirResolvedTypeRef -> {
-                superReferenceContainer.resultType = superTypeRef.copyWithNewSourceKind(FirFakeSourceElementKind.SuperCallExplicitType)
+                superReferenceContainer.resultType = superTypeRef.copyWithNewSourceKind(KtFakeSourceElementKind.SuperCallExplicitType)
             }
             superTypeRef !is FirImplicitTypeRef -> {
-                components.typeResolverTransformer.withAllowedBareTypes {
+                components.typeResolverTransformer.withBareTypes {
                     superReference.transformChildren(transformer, ResolutionMode.ContextIndependent)
                 }
 
@@ -246,7 +249,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
                     diagnostic = ConeSimpleDiagnostic("Not a super type", DiagnosticKind.NotASupertype)
                 }
                 superReferenceContainer.resultType =
-                    actualSuperTypeRef.copyWithNewSourceKind(FirFakeSourceElementKind.SuperCallExplicitType)
+                    actualSuperTypeRef.copyWithNewSourceKind(KtFakeSourceElementKind.SuperCallExplicitType)
                 superReference.replaceSuperTypeRef(actualSuperTypeRef)
             }
             else -> {
@@ -258,7 +261,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
                         diagnostic = ConeStubDiagnostic(ConeSimpleDiagnostic("Unresolved super method", DiagnosticKind.Other))
                     }
                     1 -> buildResolvedTypeRef {
-                        source = superReferenceContainer.source?.fakeElement(FirFakeSourceElementKind.SuperCallImplicitType)
+                        source = superReferenceContainer.source?.fakeElement(KtFakeSourceElementKind.SuperCallImplicitType)
                         type = types.single()
                     }
                     else -> buildErrorTypeRef {
@@ -267,7 +270,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
                     }
                 }
                 superReferenceContainer.resultType =
-                    resultType.copyWithNewSourceKind(FirFakeSourceElementKind.SuperCallExplicitType)
+                    resultType.copyWithNewSourceKind(KtFakeSourceElementKind.SuperCallExplicitType)
                 superReference.replaceSuperTypeRef(resultType)
             }
         }
@@ -285,7 +288,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         superReferenceContainer.resultType = resultType
         superReference.replaceSuperTypeRef(resultType)
         superReferenceContainer.replaceCalleeReference(buildErrorNamedReference {
-            source = superReferenceContainer.source?.fakeElement(FirFakeSourceElementKind.ReferenceInAtomicQualifiedAccess)
+            source = superReferenceContainer.source?.fakeElement(KtFakeSourceElementKind.ReferenceInAtomicQualifiedAccess)
             diagnostic = superNotAvailableDiagnostic
         })
         return superReferenceContainer
@@ -382,7 +385,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
     }
 
     override fun transformBlock(block: FirBlock, data: ResolutionMode): FirStatement {
-        context.forBlock {
+        context.forBlock(session) {
             transformBlockInCurrentScope(block, data)
         }
         return block
@@ -444,12 +447,12 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         val rightArgument = assignmentOperatorStatement.rightArgument.transformSingle(transformer, ResolutionMode.ContextDependent)
 
         fun createFunctionCall(name: Name): FirFunctionCall = buildFunctionCall {
-            source = assignmentOperatorStatement.source?.fakeElement(FirFakeSourceElementKind.DesugaredCompoundAssignment)
+            source = assignmentOperatorStatement.source?.fakeElement(KtFakeSourceElementKind.DesugaredCompoundAssignment)
             explicitReceiver = leftArgument
             argumentList = buildUnaryArgumentList(rightArgument)
             calleeReference = buildSimpleNamedReference {
                 // TODO: Use source of operator for callee reference source
-                source = assignmentOperatorStatement.source?.fakeElement(FirFakeSourceElementKind.DesugaredCompoundAssignment)
+                source = assignmentOperatorStatement.source?.fakeElement(KtFakeSourceElementKind.DesugaredCompoundAssignment)
                 this.name = name
                 candidateSymbol = null
             }
@@ -533,6 +536,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
                         dispatchReceiver = it.dispatchReceiver
                         extensionReceiver = it.extensionReceiver
                     }
+                    annotations += assignmentOperatorStatement.annotations
                 }
             return assignment.transform(transformer, ResolutionMode.ContextIndependent)
         }
@@ -600,7 +604,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         override fun <T> shouldRunCompletion(call: T): Boolean where T : FirStatement, T : FirResolvable = false
     }
 
-    private fun FirTypeRef.withTypeArgumentsForBareType(argument: FirExpression): FirTypeRef {
+    private fun FirTypeRef.withTypeArgumentsForBareType(argument: FirExpression, operation: FirOperation): FirTypeRef {
         val type = coneTypeSafe<ConeClassLikeType>() ?: return this
         if (type.typeArguments.isNotEmpty()) return this
 
@@ -608,10 +612,13 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         if (firClass.typeParameters.isEmpty()) return this
 
         val originalType = argument.unwrapSmartcastExpression().typeRef.coneTypeSafe<ConeKotlinType>() ?: return this
-        val newType = components.computeRepresentativeTypeForBareType(type, originalType) ?: return buildErrorTypeRef {
-            source = this@withTypeArgumentsForBareType.source
-            diagnostic = ConeNoTypeArgumentsOnRhsError(firClass.typeParameters.size, firClass.symbol)
-        }
+        val newType = components.computeRepresentativeTypeForBareType(type, originalType)
+            ?: if (firClass.isLocal && (operation == FirOperation.AS || operation == FirOperation.SAFE_AS)) {
+                (firClass as FirClass).defaultType()
+            } else return buildErrorTypeRef {
+                source = this@withTypeArgumentsForBareType.source
+                diagnostic = ConeNoTypeArgumentsOnRhsError(firClass.typeParameters.size, firClass.symbol)
+            }
         return if (newType.typeArguments.isEmpty()) this else withReplacedConeType(newType)
     }
 
@@ -619,7 +626,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         typeOperatorCall: FirTypeOperatorCall,
         data: ResolutionMode,
     ): FirStatement {
-        val resolved = components.typeResolverTransformer.withAllowedBareTypes {
+        val resolved = components.typeResolverTransformer.withBareTypes {
             if (typeOperatorCall.operation == FirOperation.IS || typeOperatorCall.operation == FirOperation.NOT_IS) {
                 components.typeResolverTransformer.withIsOperandOfIsOperator {
                     typeOperatorCall.transformConversionTypeRef(transformer, ResolutionMode.ContextIndependent)
@@ -629,7 +636,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
             }
         }.transformTypeOperatorCallChildren()
 
-        val conversionTypeRef = resolved.conversionTypeRef.withTypeArgumentsForBareType(resolved.argument)
+        val conversionTypeRef = resolved.conversionTypeRef.withTypeArgumentsForBareType(resolved.argument, typeOperatorCall.operation)
         resolved.transformChildren(object : FirDefaultTransformer<Any?>() {
             override fun <E : FirElement> transformElement(element: E, data: Any?): E {
                 return element
@@ -650,7 +657,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
             }
             FirOperation.AS -> {
                 resolved.resultType = buildResolvedTypeRef {
-                    source = conversionTypeRef.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)
+                    source = conversionTypeRef.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
                     type = conversionTypeRef.coneType
                     annotations += conversionTypeRef.annotations
                 }
@@ -1036,6 +1043,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         val operatorName = FirOperationNameConventions.ASSIGNMENTS.getValue(augmentedArraySetCall.operation)
 
         val firstCalls = with(augmentedArraySetCall.setGetBlock.statements.last() as FirFunctionCall) setCall@{
+            (annotations as MutableList<FirAnnotation>) += augmentedArraySetCall.annotations
             buildList {
                 add(this@setCall)
                 with(arguments.last() as FirFunctionCall) plusCall@{
@@ -1118,7 +1126,7 @@ open class FirExpressionsResolveTransformer(transformer: FirBodyResolveTransform
         anonymousObjectExpression.transformAnonymousObject(transformer, data)
         if (anonymousObjectExpression.typeRef !is FirResolvedTypeRef) {
             anonymousObjectExpression.resultType = buildResolvedTypeRef {
-                source = anonymousObjectExpression.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)
+                source = anonymousObjectExpression.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
                 this.type = anonymousObjectExpression.anonymousObject.defaultType()
             }
         }

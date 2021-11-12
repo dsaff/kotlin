@@ -30,6 +30,9 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
             FirInvalidAndDangerousCharactersChecker,
             FirAmbiguousAnonymousTypeChecker,
             FirExplicitApiDeclarationChecker,
+            FirAnnotationChecker,
+            FirPublishedApiChecker,
+            FirOptInMarkedDeclarationChecker,
         )
 
     override val functionCheckers: Set<FirFunctionChecker>
@@ -138,13 +141,6 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
             FirTypeParameterSyntaxChecker,
         )
 
-    override val annotatedDeclarationCheckers: Set<FirAnnotatedDeclarationChecker>
-        get() = setOf(
-            FirAnnotationChecker,
-            FirPublishedApiChecker,
-            FirOptInMarkedDeclarationChecker,
-        )
-
     override val typeAliasCheckers: Set<FirTypeAliasChecker>
         get() = setOf(
             FirTopLevelTypeAliasChecker,
@@ -159,5 +155,10 @@ object CommonDeclarationCheckers : DeclarationCheckers() {
     override val anonymousInitializerCheckers: Set<FirAnonymousInitializerChecker>
         get() = setOf(
             FirAnonymousInitializerInInterfaceChecker
+        )
+
+    override val enumEntryCheckers: Set<FirEnumEntryChecker>
+        get() = setOf(
+            FirEnumCompanionInEnumConstructorCallChecker,
         )
 }

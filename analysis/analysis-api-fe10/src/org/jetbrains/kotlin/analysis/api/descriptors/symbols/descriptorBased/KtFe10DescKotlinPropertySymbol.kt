@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased
 
-import org.jetbrains.kotlin.analysis.api.descriptors.KtFe10AnalysisSession
+import org.jetbrains.kotlin.analysis.api.descriptors.Fe10AnalysisContext
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.*
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.KtFe10NeverRestoringSymbolPointer
 import org.jetbrains.kotlin.analysis.api.symbols.KtKotlinPropertySymbol
@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.isExtension
 
 internal class KtFe10DescKotlinPropertySymbol(
     override val descriptor: PropertyDescriptorImpl,
-    override val analysisSession: KtFe10AnalysisSession
+    override val analysisContext: Fe10AnalysisContext
 ) : KtKotlinPropertySymbol(), KtFe10DescMemberSymbol<PropertyDescriptorImpl> {
     override val name: Name
         get() = withValidityAssertion { descriptor.name }
@@ -58,41 +58,45 @@ internal class KtFe10DescKotlinPropertySymbol(
         get() = withValidityAssertion { descriptor.isExplicitOverride }
 
     override val hasGetter: Boolean
-        get() = withValidityAssertion { descriptor.getter != null }
+        get() = withValidityAssertion { true }
 
     override val hasSetter: Boolean
-        get() = withValidityAssertion { descriptor.setter != null }
+        get() = withValidityAssertion { descriptor.isVar }
 
     override val callableIdIfNonLocal: CallableId?
-        get() = withValidityAssertion { descriptor.callableId }
+        get() = withValidityAssertion { descriptor.callableIdIfNotLocal }
 
     override val initializer: KtConstantValue?
         get() = withValidityAssertion { descriptor.compileTimeInitializer?.toKtConstantValue() }
 
-    override val getter: KtPropertyGetterSymbol?
+    override val getter: KtPropertyGetterSymbol
         get() = withValidityAssertion {
-            val getter = descriptor.getter ?: return null
-            return KtFe10DescPropertyGetterSymbol(getter, analysisSession)
+            val getter = descriptor.getter ?: return KtFe10DescDefaultPropertyGetterSymbol(descriptor, analysisContext)
+            return KtFe10DescPropertyGetterSymbol(getter, analysisContext)
         }
 
     override val setter: KtPropertySetterSymbol?
         get() = withValidityAssertion {
-            val setter = descriptor.setter ?: return null
-            return KtFe10DescPropertySetterSymbol(setter, analysisSession)
+            if (!descriptor.isVar) {
+                return null
+            }
+
+            val setter = descriptor.setter ?: return KtFe10DescDefaultPropertySetterSymbol(descriptor, analysisContext)
+            return KtFe10DescPropertySetterSymbol(setter, analysisContext)
         }
 
     override val annotatedType: KtTypeAndAnnotations
-        get() = withValidityAssertion { descriptor.type.toKtTypeAndAnnotations(analysisSession) }
+        get() = withValidityAssertion { descriptor.type.toKtTypeAndAnnotations(analysisContext) }
 
     override val receiverType: KtTypeAndAnnotations?
-        get() = withValidityAssertion { descriptor.extensionReceiverParameter?.type?.toKtTypeAndAnnotations(analysisSession) }
+        get() = withValidityAssertion { descriptor.extensionReceiverParameter?.type?.toKtTypeAndAnnotations(analysisContext) }
 
     override val dispatchType: KtType?
-        get() = withValidityAssertion { descriptor.dispatchReceiverParameter?.type?.toKtType(analysisSession) }
+        get() = withValidityAssertion { descriptor.dispatchReceiverParameter?.type?.toKtType(analysisContext) }
 
     override val hasBackingField: Boolean
         get() = withValidityAssertion {
-            val bindingContext = analysisSession.resolveSession.bindingContext
+            val bindingContext = analysisContext.resolveSession.bindingContext
             return bindingContext[BindingContext.BACKING_FIELD_REQUIRED, descriptor] == true
         }
 

@@ -21,6 +21,11 @@ import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.calls.util.getResolvedCall
 import org.jetbrains.kotlin.resolve.source.getPsi
 
+internal interface CliKtFe10Reference : KtReference {
+    override val resolver: ResolveCache.PolyVariantResolver<KtReference>
+        get() = KtFe10PolyVariantResolver
+}
+
 object KtFe10PolyVariantResolver : ResolveCache.PolyVariantResolver<KtReference> {
     @OptIn(HackToForceAllowRunningAnalyzeOnEDT::class)
     override fun resolve(reference: KtReference, incompleteCode: Boolean): Array<ResolveResult> {
@@ -28,8 +33,8 @@ object KtFe10PolyVariantResolver : ResolveCache.PolyVariantResolver<KtReference>
         return runInPossiblyEdtThread {
             val expression = reference.expression
             analyse(reference.expression) {
-                val session = this as KtFe10AnalysisSession
-                val bindingContext = session.analyze(expression, AnalysisMode.PARTIAL)
+                val analysisSession = this as KtFe10AnalysisSession
+                val bindingContext = analysisSession.analysisContext.analyze(expression, AnalysisMode.PARTIAL)
                 val descriptor = when (expression) {
                     is KtReferenceExpression -> bindingContext[BindingContext.REFERENCE_TARGET, expression]
                     else -> expression.getResolvedCall(bindingContext)?.resultingDescriptor

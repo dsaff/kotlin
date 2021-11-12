@@ -26,6 +26,8 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.ScriptDescriptor
 import org.jetbrains.kotlin.diagnostics.Diagnostic
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
 import org.jetbrains.kotlin.diagnostics.DiagnosticSink
 import org.jetbrains.kotlin.idea.MainFunctionDetector
 import org.jetbrains.kotlin.load.java.components.JavaDeprecationSettings
@@ -40,6 +42,7 @@ import org.jetbrains.kotlin.psi.KtScript
 import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.deprecation.DeprecationResolver
 import org.jetbrains.kotlin.resolve.diagnostics.Diagnostics
+import org.jetbrains.kotlin.resolve.diagnostics.OnDemandSuppressCache
 import org.jetbrains.kotlin.resolve.diagnostics.PrecomputedSuppressCache
 import org.jetbrains.kotlin.resolve.jvm.JvmClassName
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOrigin
@@ -69,6 +72,7 @@ class GenerationState private constructor(
     val jvmBackendClassResolver: JvmBackendClassResolver,
     val isIrBackend: Boolean,
     val ignoreErrors: Boolean,
+    val diagnosticReporter: DiagnosticReporter,
 ) {
     class Builder(
         private val project: Project,
@@ -122,12 +126,17 @@ class GenerationState private constructor(
         fun ignoreErrors(v: Boolean): Builder =
             apply { ignoreErrors = v }
 
+        var diagnosticReporter: DiagnosticReporter? = null
+        fun diagnosticReporter(v: DiagnosticReporter) =
+            apply { diagnosticReporter = v }
+
         fun build() =
             GenerationState(
                 project, builderFactory, module, bindingContext, files, configuration,
                 generateDeclaredClassFilter, codegenFactory, targetId,
                 moduleName, outDirectory, onIndependentPartCompilationEnd, wantsDiagnostics,
-                jvmBackendClassResolver, isIrBackend, ignoreErrors
+                jvmBackendClassResolver, isIrBackend, ignoreErrors,
+                diagnosticReporter ?: DiagnosticReporterFactory.createReporter()
             )
     }
 
@@ -190,7 +199,7 @@ class GenerationState private constructor(
     val extraJvmDiagnosticsTrace: BindingTrace =
         DelegatingBindingTrace(
             originalFrontendBindingContext, "For extra diagnostics in ${this::class.java}", false,
-            customSuppressCache = if (isIrBackend) PrecomputedSuppressCache(originalFrontendBindingContext, files) else null,
+            customSuppressCache = if (isIrBackend) OnDemandSuppressCache(originalFrontendBindingContext) else null,
         )
 
     private val interceptedBuilderFactory: ClassBuilderFactory

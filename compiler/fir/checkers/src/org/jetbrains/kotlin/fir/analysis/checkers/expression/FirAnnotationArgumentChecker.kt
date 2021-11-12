@@ -5,16 +5,16 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.expression
 
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.fir.FirSession
-import org.jetbrains.kotlin.fir.FirSourceElement
 import org.jetbrains.kotlin.fir.analysis.checkers.ConstantArgumentKind
 import org.jetbrains.kotlin.fir.analysis.checkers.checkConstantArguments
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
-import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
-import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnosticFactory0
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
+import org.jetbrains.kotlin.diagnostics.KtDiagnosticFactory0
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.findArgumentByName
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.languageVersionSettings
@@ -58,9 +58,9 @@ object FirAnnotationArgumentChecker : FirAnnotationCallChecker() {
         session: FirSession,
         reporter: DiagnosticReporter,
         context: CheckerContext
-    ): FirDiagnosticFactory0? {
+    ): KtDiagnosticFactory0? {
 
-        fun checkArgumentList(args: FirArgumentList): FirDiagnosticFactory0? {
+        fun checkArgumentList(args: FirArgumentList): KtDiagnosticFactory0? {
             var usedNonConst = false
 
             for (arg in args.arguments) {
@@ -145,7 +145,7 @@ object FirAnnotationArgumentChecker : FirAnnotationCallChecker() {
     }
 
     private fun checkDeprecatedSinceKotlin(
-        source: FirSourceElement?,
+        source: KtSourceElement?,
         fqName: FqName?,
         argumentMapping: Map<Name, FirExpression>,
         context: CheckerContext,

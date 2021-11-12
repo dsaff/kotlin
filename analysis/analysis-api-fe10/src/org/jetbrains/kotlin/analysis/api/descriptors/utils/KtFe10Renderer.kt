@@ -7,9 +7,10 @@ package org.jetbrains.kotlin.analysis.api.descriptors.utils
 
 import org.jetbrains.kotlin.analysis.api.components.KtDeclarationRendererOptions
 import org.jetbrains.kotlin.analysis.api.components.RendererModifier
-import org.jetbrains.kotlin.analysis.api.descriptors.KtFe10AnalysisSession
+import org.jetbrains.kotlin.analysis.api.descriptors.Fe10AnalysisContext
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.classId
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.isExplicitOverride
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.ktModality
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.ktVisibility
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.StandardNames
@@ -43,7 +44,7 @@ import org.jetbrains.kotlin.util.capitalizeDecapitalize.toLowerCaseAsciiOnly
 internal typealias KtFe10RendererConsumer = StringBuilder
 
 internal class KtFe10Renderer(
-    private val analysisSession: KtFe10AnalysisSession,
+    private val analysisContext: Fe10AnalysisContext,
     private val options: KtDeclarationRendererOptions,
     isDebugText: Boolean = false
 ) {
@@ -68,8 +69,8 @@ internal class KtFe10Renderer(
     private val typeRenderer = KtFe10TypeRenderer(options.typeRendererOptions, isDebugText)
 
     private val typeApproximator = TypeApproximator(
-        analysisSession.resolveSession.moduleDescriptor.builtIns,
-        analysisSession.resolveSession.languageVersionSettings
+        analysisContext.builtIns,
+        analysisContext.resolveSession.languageVersionSettings
     )
 
     private var indentation = 0
@@ -96,7 +97,7 @@ internal class KtFe10Renderer(
         if (shouldApproximate) {
             val approximatedType = typeApproximator.approximateToSuperType(type.unwrap(), PublicApproximatorConfiguration)
                 ?: type.takeIf { it.constructor.declarationDescriptor?.name != SpecialNames.NO_NAME_PROVIDED }
-                ?: analysisSession.resolveSession.moduleDescriptor.builtIns.anyType
+                ?: analysisContext.builtIns.anyType
 
             renderType(approximatedType, shouldApproximate = false)
             return
@@ -482,7 +483,7 @@ internal class KtFe10Renderer(
         body?.accept(object : KtTreeVisitorVoid() {
             override fun visitDeclaration(declaration: KtDeclaration) {
                 if (declaration is KtFunction || declaration is KtVariableDeclaration || declaration is KtClassOrObject) {
-                    val bindingContext = analysisSession.analyze(declaration)
+                    val bindingContext = analysisContext.analyze(declaration)
                     val childDescriptor = bindingContext[BindingContext.DECLARATION_TO_DESCRIPTOR, declaration]
                     if (childDescriptor != null) {
                         collectedChildren += childDescriptor
@@ -597,9 +598,11 @@ internal class KtFe10Renderer(
             return
         }
 
+        val modality = descriptor.ktModality
+
         renderModifier(
-            descriptor.modality.name.toLowerCaseAsciiOnly(),
-            descriptor.modality != getDefaultModality(descriptor),
+            modality.name.toLowerCaseAsciiOnly(),
+            modality != getDefaultModality(descriptor),
             RendererModifier.MODALITY
         )
     }
@@ -612,10 +615,10 @@ internal class KtFe10Renderer(
                 if (containingDeclaration !is ClassDescriptor) {
                     return Modality.FINAL
                 }
-                if (descriptor.isExplicitOverride && containingDeclaration.modality != Modality.FINAL) {
+                if (descriptor.isExplicitOverride && containingDeclaration.ktModality != Modality.FINAL) {
                     return Modality.OPEN
                 } else if (containingDeclaration.kind == ClassKind.INTERFACE && descriptor.visibility != DescriptorVisibilities.PRIVATE) {
-                    return if (descriptor.modality == Modality.ABSTRACT) Modality.ABSTRACT else Modality.OPEN
+                    return if (descriptor.ktModality == Modality.ABSTRACT) Modality.ABSTRACT else Modality.OPEN
                 }
 
                 return Modality.FINAL

@@ -176,6 +176,8 @@ val allParallelTestsTask = tasks.register<Test>("kgpAllParallelTests") {
         excludeTags("DaemonsKGP")
         includeEngines("junit-jupiter")
     }
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 val simpleTestsTask = tasks.register<Test>("kgpSimpleTests") {
@@ -187,6 +189,8 @@ val simpleTestsTask = tasks.register<Test>("kgpSimpleTests") {
         includeTags("SimpleKGP")
         includeEngines("junit-jupiter")
     }
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 val jvmTestsTask = tasks.register<Test>("kgpJvmTests") {
@@ -197,6 +201,8 @@ val jvmTestsTask = tasks.register<Test>("kgpJvmTests") {
         includeTags("JvmKGP")
         includeEngines("junit-jupiter")
     }
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 val jsTestsTask = tasks.register<Test>("kgpJsTests") {
@@ -207,6 +213,8 @@ val jsTestsTask = tasks.register<Test>("kgpJsTests") {
         includeTags("JsKGP")
         includeEngines("junit-jupiter")
     }
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 // Daemon tests could run only sequentially as they could not be shared between parallel test builds
@@ -221,11 +229,26 @@ val daemonsTestsTask = tasks.register<Test>("kgpDaemonTests") {
         includeTags("DaemonsKGP")
         includeEngines("junit-jupiter")
     }
+
+    // Disabled cause jna dependency FD is leaking on windows agents
+    //if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
+}
+
+val otherPluginsTestTask = tasks.register<Test>("kgpOtherTests") {
+    group = KGP_TEST_TASKS_GROUP
+    description = "Run tests for all support plugins, such as kapt, allopen, etc"
+    maxParallelForks = maxParallelTestForks
+    useJUnitPlatform {
+        includeTags("OtherKGP")
+        includeEngines("junit-jupiter")
+    }
+
+    if (isTeamcityBuild) finalizedBy(cleanTestKitCacheTask)
 }
 
 tasks.named<Task>("check") {
     dependsOn("testAdvanceGradleVersion")
-    dependsOn(simpleTestsTask, jvmTestsTask, jsTestsTask, daemonsTestsTask)
+    dependsOn(simpleTestsTask, jvmTestsTask, jsTestsTask, daemonsTestsTask, otherPluginsTestTask)
     if (isTeamcityBuild) {
         dependsOn("testAdvanceGradleVersionMppAndAndroid")
         dependsOn("testMppAndAndroid")
@@ -241,6 +264,7 @@ tasks.withType<Test> {
 
     dependsOn(":kotlin-gradle-plugin:validatePlugins")
     dependsOnKotlinGradlePluginInstall()
+    dependsOn(":examples:annotation-processor-example:install")
 
     systemProperty("kotlinVersion", rootProject.extra["kotlinVersion"] as String)
     systemProperty("runnerGradleVersion", gradle.gradleVersion)
@@ -250,6 +274,7 @@ tasks.withType<Test> {
         systemProperty("installCocoapods", installCocoapods)
     }
 
+    val jdk8Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_1_8).map { it.metadata.installationPath.asFile.absolutePath }
     val jdk9Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_9).map { it.metadata.installationPath.asFile.absolutePath }
     val jdk10Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_10).map { it.metadata.installationPath.asFile.absolutePath }
     val jdk11Provider = project.getToolchainLauncherFor(JdkMajorVersion.JDK_11).map { it.metadata.installationPath.asFile.absolutePath }
@@ -258,6 +283,7 @@ tasks.withType<Test> {
 
     // Query required JDKs paths only on execution phase to avoid triggering auto-download on project configuration phase
     doFirst {
+        systemProperty("jdk8Home", jdk8Provider.get())
         systemProperty("jdk9Home", jdk9Provider.get())
         systemProperty("jdk10Home", jdk10Provider.get())
         systemProperty("jdk11Home", jdk11Provider.get())
@@ -274,7 +300,8 @@ tasks.withType<Test> {
         simpleTestsTask.name,
         jvmTestsTask.name,
         jsTestsTask.name,
-        daemonsTestsTask.name
+        daemonsTestsTask.name,
+        otherPluginsTestTask.name
     )
     if (shouldApplyJunitPlatform) {
         maxHeapSize = "512m"

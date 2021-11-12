@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.base.KtFe10Symbol
 import org.jetbrains.kotlin.analysis.api.descriptors.types.KtFe10ClassErrorType
+import org.jetbrains.kotlin.analysis.api.symbols.KtSymbolOrigin
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtAnnotationCall
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolKind
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtTypeAndAnnotations
@@ -24,6 +25,7 @@ import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.*
+import org.jetbrains.kotlin.psi.psiUtil.getParentOfType
 import org.jetbrains.kotlin.psi.psiUtil.hasBody
 import org.jetbrains.kotlin.psi.psiUtil.isTopLevelInFileOrScript
 import org.jetbrains.kotlin.psi.psiUtil.parentsWithSelf
@@ -61,40 +63,69 @@ internal val KtDeclaration.ktModality: Modality?
     }
 
 internal val KtElement.ktSymbolKind: KtSymbolKind
-    get() = when {
-        this is KtPropertyAccessor -> KtSymbolKind.ACCESSOR
-        isTopLevelInFileOrScript(this) -> KtSymbolKind.TOP_LEVEL
-        this is KtDeclaration && !KtPsiUtil.isLocal(this) -> KtSymbolKind.CLASS_MEMBER
-        else -> KtSymbolKind.LOCAL
-    }
-
-internal val KtDeclaration.callableId: CallableId?
     get() {
-        val selfName = this.name ?: return null
-        val containingFile = this.containingKtFile
-
-        var current = this.getElementParentDeclaration()
-
-        val localName = mutableListOf<String>()
-        val className = mutableListOf<String>()
-
-        while (current != null) {
-            when (current) {
-                is KtClassOrObject -> className += current.name ?: return null
-                is KtPropertyAccessor -> {} // Filter out property accessors
-                is KtCallableDeclaration -> localName += current.name ?: return null
-            }
-
-            current = current.getElementParentDeclaration()
+        if (this is KtPropertyAccessor) {
+            return KtSymbolKind.ACCESSOR
         }
 
-        return CallableId(
-            packageName = containingFile.packageFqName,
-            className = if (className.isNotEmpty()) FqName.fromSegments(className.asReversed()) else null,
-            callableName = Name.identifier(selfName),
-            pathToLocal = if (localName.isNotEmpty()) FqName.fromSegments(localName.asReversed()) else null
-        )
+        if (this is KtDeclaration) {
+            return when (this.getParentOfType<KtDeclaration>(strict = true)) {
+                null -> KtSymbolKind.TOP_LEVEL
+                is KtCallableDeclaration, is KtPropertyAccessor -> KtSymbolKind.LOCAL
+                else -> KtSymbolKind.CLASS_MEMBER
+            }
+        }
+
+        return KtSymbolKind.LOCAL
     }
+
+internal val KtDeclaration.callableIdIfNonLocal: CallableId?
+    get() = calculateCallableId(allowLocal = false)
+
+internal val KtElement.ktSymbolOrigin: KtSymbolOrigin
+    get() {
+        return if (containingKtFile.isCompiled) {
+            KtSymbolOrigin.LIBRARY
+        } else {
+            KtSymbolOrigin.SOURCE
+        }
+    }
+
+internal fun KtDeclaration.calculateCallableId(allowLocal: Boolean): CallableId? {
+    val selfName = this.name ?: return null
+    val containingFile = this.containingKtFile
+
+    var current = this.getElementParentDeclaration()
+
+    val localName = mutableListOf<String>()
+    val className = mutableListOf<String>()
+
+    while (current != null) {
+        when (current) {
+            is KtPropertyAccessor -> {
+                // Filter out property accessors
+            }
+            is KtCallableDeclaration, is KtEnumEntry -> {
+                if (!allowLocal) {
+                    return null
+                }
+                localName += current.name ?: return null
+            }
+            is KtClassOrObject -> {
+                className += current.name ?: return null
+            }
+        }
+
+        current = current.getElementParentDeclaration()
+    }
+
+    return CallableId(
+        packageName = containingFile.packageFqName,
+        className = if (className.isNotEmpty()) FqName.fromSegments(className.asReversed()) else null,
+        callableName = Name.identifier(selfName),
+        pathToLocal = if (localName.isNotEmpty()) FqName.fromSegments(localName.asReversed()) else null
+    )
+}
 
 internal fun PsiElement.getResolutionScope(bindingContext: BindingContext): LexicalScope? {
     for (parent in parentsWithSelf) {
@@ -133,5 +164,5 @@ internal fun KtFe10Symbol.createErrorTypeAndAnnotations(): KtTypeAndAnnotations 
 
 internal fun KtFe10Symbol.createErrorType(): KtType {
     val type = ErrorUtils.createErrorType("Type is unavailable for declaration $psi") as ErrorType
-    return KtFe10ClassErrorType(type, analysisSession)
+    return KtFe10ClassErrorType(type, analysisContext)
 }

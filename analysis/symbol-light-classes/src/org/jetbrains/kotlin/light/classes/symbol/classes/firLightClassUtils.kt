@@ -37,7 +37,7 @@ import org.jetbrains.kotlin.psi.psiUtil.containingClass
 import org.jetbrains.kotlin.resolve.jvm.diagnostics.JvmDeclarationOriginKind
 import java.util.*
 
-fun getOrCreateFirLightClass(classOrObject: KtClassOrObject): KtLightClass? =
+internal fun getOrCreateFirLightClass(classOrObject: KtClassOrObject): KtLightClass? =
     CachedValuesManager.getCachedValue(classOrObject) {
         CachedValueProvider.Result
             .create(
@@ -47,7 +47,7 @@ fun getOrCreateFirLightClass(classOrObject: KtClassOrObject): KtLightClass? =
     }
 
 @OptIn(HackToForceAllowRunningAnalyzeOnEDT::class)
-fun createFirLightClassNoCache(classOrObject: KtClassOrObject): KtLightClass? = hackyAllowRunningOnEdt {
+internal fun createFirLightClassNoCache(classOrObject: KtClassOrObject): KtLightClass? = hackyAllowRunningOnEdt {
 
     val containingFile = classOrObject.containingFile
     if (containingFile is KtCodeFragment) {
@@ -70,7 +70,11 @@ fun createFirLightClassNoCache(classOrObject: KtClassOrObject): KtLightClass? = 
 
     return when {
         classOrObject is KtEnumEntry -> lightClassForEnumEntry(classOrObject)
-        classOrObject.hasModifier(KtTokens.INLINE_KEYWORD) -> return null //TODO
+        classOrObject.hasModifier(KtTokens.INLINE_KEYWORD) -> {
+            analyseForLightClasses(classOrObject) {
+                classOrObject.getNamedClassOrObjectSymbol()?.let { FirLightInlineClass(it, classOrObject.manager) }
+            }
+        }
         else -> {
             analyseForLightClasses(classOrObject) {
                 classOrObject.getClassOrObjectSymbol().createLightClassNoCache(classOrObject.manager)
@@ -88,28 +92,8 @@ internal fun KtClassOrObjectSymbol.createLightClassNoCache(manager: PsiManager):
     }
 }
 
-fun getOrCreateFirLightFacade(
-    ktFiles: List<KtFile>,
-    facadeClassFqName: FqName,
-): FirLightClassForFacade? {
-    val firstFile = ktFiles.firstOrNull() ?: return null
-    //TODO Make caching keyed by all files
-    return CachedValuesManager.getCachedValue(firstFile) {
-        CachedValueProvider.Result
-            .create(
-                getOrCreateFirLightFacadeNoCache(ktFiles, facadeClassFqName),
-                firstFile.project.createProjectWideOutOfBlockModificationTracker()
-            )
-    }
-}
 
-fun getOrCreateFirLightFacadeNoCache(
-    ktFiles: List<KtFile>,
-    facadeClassFqName: FqName,
-): FirLightClassForFacade? {
-    val firstFile = ktFiles.firstOrNull() ?: return null
-    return FirLightClassForFacade(firstFile.manager, facadeClassFqName, ktFiles)
-}
+
 
 
 private fun lightClassForEnumEntry(ktEnumEntry: KtEnumEntry): KtLightClass? {
@@ -191,74 +175,7 @@ internal fun FirLightClassBase.createMethods(
                     }
                 }
             }
-            is KtPropertySymbol -> {
-
-                if (declaration is KtKotlinPropertySymbol && declaration.isConst) return
-
-                if (declaration.visibility.isPrivateOrPrivateToThis() &&
-                    declaration.getter?.hasBody == false &&
-                    declaration.setter?.hasBody == false
-                ) return
-
-                if (declaration.hasJvmFieldAnnotation()) return
-
-                fun KtPropertyAccessorSymbol.needToCreateAccessor(siteTarget: AnnotationUseSiteTarget): Boolean {
-                    if (isInline) return false
-                    if (!hasBody && visibility.isPrivateOrPrivateToThis()) return false
-                    if (declaration.isHiddenOrSynthetic(project, siteTarget)) return false
-                    if (isHiddenOrSynthetic(project)) return false
-                    return true
-                }
-
-                val originalElement = declaration.psi as? KtDeclaration
-
-                val getter = declaration.getter?.takeIf {
-                    it.needToCreateAccessor(AnnotationUseSiteTarget.PROPERTY_GETTER)
-                }
-
-                if (getter != null) {
-                    val lightMemberOrigin = originalElement?.let {
-                        LightMemberOriginForDeclaration(
-                            originalElement = it,
-                            originKind = JvmDeclarationOriginKind.OTHER,
-                            auxiliaryOriginalElement = getter.psi as? KtDeclaration
-                        )
-                    }
-
-                    result.add(
-                        FirLightAccessorMethodForSymbol(
-                            propertyAccessorSymbol = getter,
-                            containingPropertySymbol = declaration,
-                            lightMemberOrigin = lightMemberOrigin,
-                            containingClass = this@createMethods,
-                            isTopLevel = isTopLevel
-                        )
-                    )
-                }
-
-                val setter = declaration.setter?.takeIf {
-                    !isAnnotationType && it.needToCreateAccessor(AnnotationUseSiteTarget.PROPERTY_SETTER)
-                }
-
-                if (setter != null) {
-                    val lightMemberOrigin = originalElement?.let {
-                        LightMemberOriginForDeclaration(
-                            originalElement = it,
-                            originKind = JvmDeclarationOriginKind.OTHER,
-                            auxiliaryOriginalElement = setter.psi as? KtDeclaration
-                        )
-                    }
-                    result.add(
-                        FirLightAccessorMethodForSymbol(
-                            propertyAccessorSymbol = setter,
-                            containingPropertySymbol = declaration,
-                            lightMemberOrigin = lightMemberOrigin,
-                            containingClass = this@createMethods,
-                            isTopLevel = isTopLevel
-                        )
-                    )
-                }
-            }
+            is KtPropertySymbol -> createPropertyAccessors(result, declaration, isTopLevel)
             is KtConstructorSymbol -> error("Constructors should be handled separately and not passed to this function")
         }
     }
@@ -270,6 +187,79 @@ internal fun FirLightClassBase.createMethods(
     // Then, properties from the primary constructor parameters
     declarationGroups[true]?.forEach {
         handleDeclaration(it)
+    }
+}
+
+internal fun FirLightClassBase.createPropertyAccessors(
+    result: MutableList<KtLightMethod>,
+    declaration: KtPropertySymbol,
+    isTopLevel: Boolean,
+    isMutable: Boolean = !declaration.isVal,
+) {
+    if (declaration is KtKotlinPropertySymbol && declaration.isConst) return
+
+    if (declaration.visibility.isPrivateOrPrivateToThis() &&
+        declaration.getter?.hasBody == false &&
+        declaration.setter?.hasBody == false
+    ) return
+
+    if (declaration.hasJvmFieldAnnotation()) return
+
+    fun KtPropertyAccessorSymbol.needToCreateAccessor(siteTarget: AnnotationUseSiteTarget): Boolean {
+        if (isInline) return false
+        if (!hasBody && visibility.isPrivateOrPrivateToThis()) return false
+        if (declaration.isHiddenOrSynthetic(project, siteTarget)) return false
+        if (isHiddenOrSynthetic(project)) return false
+        return true
+    }
+
+    val originalElement = declaration.psi as? KtDeclaration
+
+    val getter = declaration.getter?.takeIf {
+        it.needToCreateAccessor(AnnotationUseSiteTarget.PROPERTY_GETTER)
+    }
+
+    if (getter != null) {
+        val lightMemberOrigin = originalElement?.let {
+            LightMemberOriginForDeclaration(
+                originalElement = it,
+                originKind = JvmDeclarationOriginKind.OTHER,
+                auxiliaryOriginalElement = getter.psi as? KtDeclaration
+            )
+        }
+
+        result.add(
+            FirLightAccessorMethodForSymbol(
+                propertyAccessorSymbol = getter,
+                containingPropertySymbol = declaration,
+                lightMemberOrigin = lightMemberOrigin,
+                containingClass = this@createPropertyAccessors,
+                isTopLevel = isTopLevel
+            )
+        )
+    }
+
+    val setter = declaration.setter?.takeIf {
+        !isAnnotationType && it.needToCreateAccessor(AnnotationUseSiteTarget.PROPERTY_SETTER)
+    }
+
+    if (isMutable && setter != null) {
+        val lightMemberOrigin = originalElement?.let {
+            LightMemberOriginForDeclaration(
+                originalElement = it,
+                originKind = JvmDeclarationOriginKind.OTHER,
+                auxiliaryOriginalElement = setter.psi as? KtDeclaration
+            )
+        }
+        result.add(
+            FirLightAccessorMethodForSymbol(
+                propertyAccessorSymbol = setter,
+                containingPropertySymbol = declaration,
+                lightMemberOrigin = lightMemberOrigin,
+                containingClass = this@createPropertyAccessors,
+                isTopLevel = isTopLevel
+            )
+        )
     }
 }
 

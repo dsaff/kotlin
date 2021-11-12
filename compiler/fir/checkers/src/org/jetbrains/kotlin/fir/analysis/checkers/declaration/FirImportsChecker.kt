@@ -5,13 +5,13 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.analysis.checkers.collectEnumEntries
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.expression.FirDeprecationChecker
 import org.jetbrains.kotlin.fir.analysis.checkers.fullyExpandedClass
-import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.declarations.FirErrorImport
 import org.jetbrains.kotlin.fir.declarations.FirFile
 import org.jetbrains.kotlin.fir.declarations.FirImport
@@ -32,10 +32,11 @@ object FirImportsChecker : FirFileChecker() {
     override fun check(declaration: FirFile, context: CheckerContext, reporter: DiagnosticReporter) {
         declaration.imports.forEach { import ->
             if (import is FirErrorImport) return@forEach
-            if (import.isAllUnder && import !is FirResolvedImport) {
-                checkAllUnderFromEnumEntry(import, context, reporter)
-            }
-            if (!import.isAllUnder) {
+            if (import.isAllUnder) {
+                if (import !is FirResolvedImport) {
+                    checkAllUnderFromEnumEntry(import, context, reporter)
+                }
+            } else {
                 checkCanBeImported(import, context, reporter)
                 if (import is FirResolvedImport) {
                     checkOperatorRename(import, context, reporter)

@@ -9,6 +9,8 @@ package codegen.initializers.static
 import kotlin.test.*
 import kotlin.native.internal.*
 import kotlin.reflect.*
+import kotlin.native.Platform
+import kotlin.native.OsFamily
 
 class Delegate {
     operator fun getValue(thisRef: Any?, property: KProperty<*>) : String {
@@ -51,7 +53,9 @@ fun f() = 5
         assertEquals(15, varargGetter(1, 2, 3, 4))
         assertEquals(20, varargGetter(2, 2, 3, 4))
         assertEquals(20, varargGetter(2, 2, 3, 4))
-        assertFailsWith<ArrayIndexOutOfBoundsException> { varargGetter(3, 2, 3, 4) }
+        if (Platform.osFamily != OsFamily.WASM) {
+            assertFailsWith<ArrayIndexOutOfBoundsException> { varargGetter(3, 2, 3, 4) }
+        }
     }
 }
 
@@ -172,4 +176,36 @@ inline fun invokeAndReturnKClass(block: ()->Boolean) : KClass<*> {
         assertTrue(clazz.isPermanent())
         assertEquals("kotlin.Int", clazz.qualifiedName)
     }
+}
+
+@Test fun testSmallIntIdentity() {
+    val xBool = true
+    val xBoolStatic : Any = false
+    val xBoolDyanmic : Any = !xBool
+    assertSame(xBoolStatic, xBoolDyanmic)
+
+    val xByte = 1.toByte()
+    val xByteStatic : Any = 2.toByte()
+    val xByteDyanmic : Any = (xByte + xByte).toByte()
+    assertSame(xByteStatic, xByteDyanmic)
+
+    val xShort = 1.toShort()
+    val xShortStatic : Any = 2.toShort()
+    val xShortDyanmic : Any = (xShort + xShort).toShort()
+    assertSame(xShortStatic, xShortDyanmic)
+
+    val xInt = 1.toInt()
+    val xIntStatic : Any = 2.toInt()
+    val xIntDyanmic : Any = xInt + xInt
+    assertSame(xIntStatic, xIntDyanmic)
+
+    val xChar = 1.toChar()
+    val xCharStatic : Any = 2.toChar()
+    val xCharDyanmic : Any = (xChar.code + xChar.code).toChar()
+    assertSame(xCharStatic, xCharDyanmic)
+
+    val xLong = 1.toLong()
+    val xLongStatic = 2.toLong()
+    val xLongDyanmic = xLong + xLong
+    assertSame(xLongStatic, xLongDyanmic)
 }

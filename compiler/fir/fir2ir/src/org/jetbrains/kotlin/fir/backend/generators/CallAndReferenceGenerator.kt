@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.fir.backend.generators
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.backend.common.ir.isMethodOfAny
-import org.jetbrains.kotlin.fir.FirFakeSourceElementKind
 import org.jetbrains.kotlin.fir.backend.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isCompanion
@@ -70,14 +70,15 @@ class CallAndReferenceGenerator(
         callableReferenceAccess: FirCallableReferenceAccess,
         explicitReceiverExpression: IrExpression?
     ): IrExpression {
-        val symbol =
-            callableReferenceAccess.calleeReference.toSymbolForCall(session, classifierStorage, declarationStorage, conversionScope)
+        val symbol = callableReferenceAccess.calleeReference.toSymbolForCall(
+            callableReferenceAccess.dispatchReceiver, session, classifierStorage, declarationStorage, conversionScope
+        )
         val type = callableReferenceAccess.typeRef.toIrType()
         // val x by y ->
         //   val `x$delegate` = y
         //   val x get() = `x$delegate`.getValue(this, ::x)
         // The reference here (like the rest of the accessor) has DefaultAccessor source kind.
-        val isForDelegate = callableReferenceAccess.source?.kind == FirFakeSourceElementKind.DelegatedPropertyAccessor
+        val isForDelegate = callableReferenceAccess.source?.kind == KtFakeSourceElementKind.DelegatedPropertyAccessor
         val origin = if (isForDelegate) IrStatementOrigin.PROPERTY_REFERENCE_FOR_DELEGATE else null
         return callableReferenceAccess.convertWithOffsets { startOffset, endOffset ->
             when (symbol) {
@@ -233,15 +234,17 @@ class CallAndReferenceGenerator(
             val samConstructorCall = qualifiedAccess.tryConvertToSamConstructorCall(type)
             if (samConstructorCall != null) return samConstructorCall
 
-            val symbol = qualifiedAccess.calleeReference.toSymbolForCall(
+            val dispatchReceiver = qualifiedAccess.dispatchReceiver
+            val calleeReference = qualifiedAccess.calleeReference
+            val symbol = calleeReference.toSymbolForCall(
+                dispatchReceiver,
                 session,
                 classifierStorage,
                 declarationStorage,
                 conversionScope
             )
             return qualifiedAccess.convertWithOffsets { startOffset, endOffset ->
-                val dispatchReceiver = qualifiedAccess.dispatchReceiver
-                if (qualifiedAccess.calleeReference is FirSuperReference) {
+                if (calleeReference is FirSuperReference) {
                     if (dispatchReceiver !is FirNoReceiverExpression) {
                         return@convertWithOffsets visitor.convertToIrExpression(dispatchReceiver)
                     }
@@ -253,7 +256,7 @@ class CallAndReferenceGenerator(
                             startOffset, endOffset, type, symbol,
                             typeArgumentsCount = symbol.owner.typeParameters.size,
                             valueArgumentsCount = symbol.owner.valueParameters.size,
-                            origin = qualifiedAccess.calleeReference.statementOrigin(),
+                            origin = calleeReference.statementOrigin(),
                             superQualifierSymbol = dispatchReceiver.superQualifierSymbol()
                         )
                     }
@@ -283,22 +286,22 @@ class CallAndReferenceGenerator(
                             )
                             else -> IrErrorCallExpressionImpl(
                                 startOffset, endOffset, type,
-                                description = "No getter or backing field found for ${qualifiedAccess.calleeReference.render()}"
+                                description = "No getter or backing field found for ${calleeReference.render()}"
                             )
                         }
                     }
                     is IrFieldSymbol -> IrGetFieldImpl(
                         startOffset, endOffset, symbol, type,
-                        origin = IrStatementOrigin.GET_PROPERTY.takeIf { qualifiedAccess.calleeReference !is FirDelegateFieldReference },
+                        origin = IrStatementOrigin.GET_PROPERTY.takeIf { calleeReference !is FirDelegateFieldReference },
                         superQualifierSymbol = dispatchReceiver.superQualifierSymbol()
                     )
                     is IrValueSymbol -> IrGetValueImpl(
                         startOffset, endOffset, type, symbol,
                         origin = if (variableAsFunctionMode) IrStatementOrigin.VARIABLE_AS_FUNCTION
-                        else qualifiedAccess.calleeReference.statementOrigin()
+                        else calleeReference.statementOrigin()
                     )
                     is IrEnumEntrySymbol -> IrGetEnumValueImpl(startOffset, endOffset, type, symbol)
-                    else -> generateErrorCallExpression(startOffset, endOffset, qualifiedAccess.calleeReference, type)
+                    else -> generateErrorCallExpression(startOffset, endOffset, calleeReference, type)
                 }
             }.applyTypeArguments(qualifiedAccess).applyReceivers(qualifiedAccess, explicitReceiverExpression)
                 .applyCallArguments(qualifiedAccess as? FirCall, annotationMode)
@@ -314,10 +317,10 @@ class CallAndReferenceGenerator(
         try {
             val type = irBuiltIns.unitType
             val calleeReference = variableAssignment.calleeReference
-            val symbol =
-                calleeReference.toSymbolForCall(session, classifierStorage, declarationStorage, conversionScope, preferGetter = false)
+            val symbol = calleeReference.toSymbolForCall(
+                variableAssignment.dispatchReceiver, session, classifierStorage, declarationStorage, conversionScope, preferGetter = false
+            )
             val origin = variableAssignment.getIrAssignmentOrigin()
-
             return variableAssignment.convertWithOffsets { startOffset, endOffset ->
                 val assignedValue = visitor.convertToIrExpression(variableAssignment.rValue)
                 when (symbol) {

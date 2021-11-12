@@ -2075,6 +2075,99 @@ public class IrBoxJsES6TestGenerated extends AbstractIrBoxJsES6Test {
         }
     }
 
+    @TestMetadata("js/js.translator/testData/box/escapedIdentifiers")
+    @TestDataPath("$PROJECT_ROOT")
+    @RunWith(JUnit3RunnerWithInners.class)
+    public static class EscapedIdentifiers extends AbstractIrBoxJsES6Test {
+        private void runTest(String testDataFilePath) throws Exception {
+            KotlinTestUtils.runTest0(this::doTest, TargetBackend.JS_IR_ES6, testDataFilePath);
+        }
+
+        public void testAllFilesPresentInEscapedIdentifiers() throws Exception {
+            KtTestUtil.assertAllTestsPresentByMetadataWithExcluded(this.getClass(), new File("js/js.translator/testData/box/escapedIdentifiers"), Pattern.compile("^([^_](.+))\\.kt$"), null, TargetBackend.JS_IR_ES6, true);
+        }
+
+        @TestMetadata("classLikeMemberClassMangling.kt")
+        public void testClassLikeMemberClassMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/classLikeMemberClassMangling.kt");
+        }
+
+        @TestMetadata("classLikeMemberFieldMangling.kt")
+        public void testClassLikeMemberFieldMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/classLikeMemberFieldMangling.kt");
+        }
+
+        @TestMetadata("classLikeMemberFunctionMangling.kt")
+        public void testClassLikeMemberFunctionMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/classLikeMemberFunctionMangling.kt");
+        }
+
+        @TestMetadata("dynamicEscapedField.kt")
+        public void testDynamicEscapedField() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/dynamicEscapedField.kt");
+        }
+
+        @TestMetadata("externalEscapedAMDTopLevel.kt")
+        public void testExternalEscapedAMDTopLevel() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/externalEscapedAMDTopLevel.kt");
+        }
+
+        @TestMetadata("externalEscapedClassFields.kt")
+        public void testExternalEscapedClassFields() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/externalEscapedClassFields.kt");
+        }
+
+        @TestMetadata("externalEscapedCommonJSTopLevel.kt")
+        public void testExternalEscapedCommonJSTopLevel() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/externalEscapedCommonJSTopLevel.kt");
+        }
+
+        @TestMetadata("externalEscapedTopLevel.kt")
+        public void testExternalEscapedTopLevel() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/externalEscapedTopLevel.kt");
+        }
+
+        @TestMetadata("topLevelExportedClass.kt")
+        public void testTopLevelExportedClass() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelExportedClass.kt");
+        }
+
+        @TestMetadata("topLevelExportedCompanion.kt")
+        public void testTopLevelExportedCompanion() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelExportedCompanion.kt");
+        }
+
+        @TestMetadata("topLevelExportedFunction.kt")
+        public void testTopLevelExportedFunction() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelExportedFunction.kt");
+        }
+
+        @TestMetadata("topLevelExportedVariable.kt")
+        public void testTopLevelExportedVariable() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelExportedVariable.kt");
+        }
+
+        @TestMetadata("topLevelLocalClassMangling.kt")
+        public void testTopLevelLocalClassMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelLocalClassMangling.kt");
+        }
+
+        @TestMetadata("topLevelLocalCompanionMangling.kt")
+        public void testTopLevelLocalCompanionMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelLocalCompanionMangling.kt");
+        }
+
+        @TestMetadata("topLevelLocalFunctionMangling.kt")
+        public void testTopLevelLocalFunctionMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelLocalFunctionMangling.kt");
+        }
+
+        @TestMetadata("topLevelLocalVariableMangling.kt")
+        public void testTopLevelLocalVariableMangling() throws Exception {
+            runTest("js/js.translator/testData/box/escapedIdentifiers/topLevelLocalVariableMangling.kt");
+        }
+    }
+
     @TestMetadata("js/js.translator/testData/box/examples")
     @TestDataPath("$PROJECT_ROOT")
     @RunWith(JUnit3RunnerWithInners.class)
@@ -2118,6 +2211,11 @@ public class IrBoxJsES6TestGenerated extends AbstractIrBoxJsES6Test {
         @TestMetadata("exportAllFile.kt")
         public void testExportAllFile() throws Exception {
             runTest("js/js.translator/testData/box/export/exportAllFile.kt");
+        }
+
+        @TestMetadata("exportEnumClass.kt")
+        public void testExportEnumClass() throws Exception {
+            runTest("js/js.translator/testData/box/export/exportEnumClass.kt");
         }
 
         @TestMetadata("exportNestedClass.kt")
@@ -5628,6 +5726,16 @@ public class IrBoxJsES6TestGenerated extends AbstractIrBoxJsES6Test {
             runTest("js/js.translator/testData/box/jsCode/invocation.kt");
         }
 
+        @TestMetadata("kt41964.kt")
+        public void testKt41964() throws Exception {
+            runTest("js/js.translator/testData/box/jsCode/kt41964.kt");
+        }
+
+        @TestMetadata("kt44981.kt")
+        public void testKt44981() throws Exception {
+            runTest("js/js.translator/testData/box/jsCode/kt44981.kt");
+        }
+
         @TestMetadata("label.kt")
         public void testLabel() throws Exception {
             runTest("js/js.translator/testData/box/jsCode/label.kt");
@@ -7486,6 +7594,11 @@ public class IrBoxJsES6TestGenerated extends AbstractIrBoxJsES6Test {
         @TestMetadata("exportedBaseClass.kt")
         public void testExportedBaseClass() throws Exception {
             runTest("js/js.translator/testData/box/propertyOverride/exportedBaseClass.kt");
+        }
+
+        @TestMetadata("externalPropertyOverride.kt")
+        public void testExternalPropertyOverride() throws Exception {
+            runTest("js/js.translator/testData/box/propertyOverride/externalPropertyOverride.kt");
         }
 
         @TestMetadata("initOverrideInConstructor.kt")

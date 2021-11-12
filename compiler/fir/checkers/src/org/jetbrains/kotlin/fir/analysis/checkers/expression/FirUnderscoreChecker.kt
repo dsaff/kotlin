@@ -7,9 +7,9 @@ package org.jetbrains.kotlin.fir.analysis.checkers.expression
 
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.checkUnderscoreDiagnostics
-import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
 import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
-import org.jetbrains.kotlin.fir.analysis.diagnostics.reportOn
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.diagnostics.ConeUnderscoreUsageWithoutBackticks
 import org.jetbrains.kotlin.fir.expressions.FirResolvable
 import org.jetbrains.kotlin.fir.expressions.FirResolvedQualifier
@@ -29,8 +29,10 @@ object FirUnderscoreChecker : FirBasicExpressionChecker() {
                 checkResolvedToUnderscoreNamedCatchParameter(expression, context, reporter)
             }
             is FirResolvedQualifier -> {
-                for (reservedUnderscoreDiagnostic in expression.nonFatalDiagnostics.filterIsInstance<ConeUnderscoreUsageWithoutBackticks>()) {
-                    reporter.reportOn(reservedUnderscoreDiagnostic.source, FirErrors.UNDERSCORE_USAGE_WITHOUT_BACKTICKS, context)
+                for (reservedUnderscoreDiagnostic in expression.nonFatalDiagnostics) {
+                    if (reservedUnderscoreDiagnostic is ConeUnderscoreUsageWithoutBackticks) {
+                        reporter.reportOn(reservedUnderscoreDiagnostic.source, FirErrors.UNDERSCORE_USAGE_WITHOUT_BACKTICKS, context)
+                    }
                 }
             }
         }

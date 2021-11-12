@@ -5,14 +5,18 @@
 
 package org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased
 
+import org.jetbrains.kotlin.analysis.api.descriptors.Fe10AnalysisContext
 import org.jetbrains.kotlin.analysis.api.descriptors.Fe10AnalysisFacade.AnalysisMode
-import org.jetbrains.kotlin.analysis.api.descriptors.KtFe10AnalysisSession
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.*
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.ktVisibility
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.toKtConstantValue
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.toKtType
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.descriptorBased.base.toKtTypeAndAnnotations
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.pointers.KtFe10NeverRestoringSymbolPointer
 import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.*
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.ktModality
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.ktSymbolKind
+import org.jetbrains.kotlin.analysis.api.descriptors.symbols.psiBased.base.ktVisibility
 import org.jetbrains.kotlin.analysis.api.descriptors.utils.cached
 import org.jetbrains.kotlin.analysis.api.symbols.KtKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertyGetterSymbol
@@ -20,6 +24,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KtPropertySetterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtConstantValue
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtSymbolKind
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtTypeAndAnnotations
+import org.jetbrains.kotlin.analysis.api.symbols.markers.KtUnsupportedConstantValue
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KtPsiBasedSymbolPointer
 import org.jetbrains.kotlin.analysis.api.symbols.pointers.KtSymbolPointer
 import org.jetbrains.kotlin.analysis.api.types.KtType
@@ -34,13 +39,15 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtProperty
 import org.jetbrains.kotlin.psi.psiUtil.isExtensionDeclaration
 import org.jetbrains.kotlin.resolve.BindingContext
+import org.jetbrains.kotlin.resolve.constants.evaluate.ConstantExpressionEvaluator
+import org.jetbrains.kotlin.types.TypeUtils
 
 internal class KtFe10PsiKotlinPropertySymbol(
     override val psi: KtProperty,
-    override val analysisSession: KtFe10AnalysisSession
+    override val analysisContext: Fe10AnalysisContext
 ) : KtKotlinPropertySymbol(), KtFe10PsiSymbol<KtProperty, PropertyDescriptor> {
     override val descriptor: PropertyDescriptor? by cached {
-        val bindingContext = analysisSession.analyze(psi, AnalysisMode.PARTIAL)
+        val bindingContext = analysisContext.analyze(psi, AnalysisMode.PARTIAL)
         bindingContext[BindingContext.VARIABLE, psi] as? PropertyDescriptor
     }
 
@@ -51,26 +58,30 @@ internal class KtFe10PsiKotlinPropertySymbol(
         get() = withValidityAssertion { psi.hasModifier(KtTokens.CONST_KEYWORD) }
 
     override val hasGetter: Boolean
-        get() = withValidityAssertion { psi.getter != null }
+        get() = withValidityAssertion { true }
 
     override val hasSetter: Boolean
-        get() = withValidityAssertion { psi.setter != null }
+        get() = withValidityAssertion { psi.isVar }
 
-    override val getter: KtPropertyGetterSymbol?
+    override val getter: KtPropertyGetterSymbol
         get() = withValidityAssertion {
-            val getter = psi.getter ?: return null
-            return KtFe10PsiPropertyGetterSymbol(getter, analysisSession)
+            val getter = psi.getter ?: return KtFe10PsiDefaultPropertyGetterSymbol(psi, analysisContext)
+            return KtFe10PsiPropertyGetterSymbol(getter, analysisContext)
         }
 
     override val setter: KtPropertySetterSymbol?
         get() = withValidityAssertion {
-            val setter = psi.setter ?: return null
-            return KtFe10PsiPropertySetterSymbol(setter, analysisSession)
+            if (!psi.isVar) {
+                return null
+            }
+
+            val setter = psi.setter ?: return KtFe10PsiDefaultPropertySetterSymbol(psi, analysisContext)
+            return KtFe10PsiPropertySetterSymbol(setter, analysisContext)
         }
 
     override val hasBackingField: Boolean
         get() = withValidityAssertion {
-            val bindingContext = analysisSession.analyze(psi, AnalysisMode.PARTIAL)
+            val bindingContext = analysisContext.analyze(psi, AnalysisMode.PARTIAL)
             bindingContext[BindingContext.BACKING_FIELD_REQUIRED, descriptor] == true
         }
 
@@ -89,21 +100,36 @@ internal class KtFe10PsiKotlinPropertySymbol(
         get() = withValidityAssertion { false }
 
     override val initializer: KtConstantValue?
-        get() = withValidityAssertion { descriptor?.compileTimeInitializer?.toKtConstantValue() }
+        get() = withValidityAssertion {
+            val initializer = psi.initializer ?: return null
+
+            val compileTimeInitializer = descriptor?.compileTimeInitializer
+            if (compileTimeInitializer != null) {
+                return compileTimeInitializer.toKtConstantValue()
+            }
+
+            val bindingContext = analysisContext.analyze(initializer)
+            val constantValue = ConstantExpressionEvaluator.getConstant(initializer, bindingContext)
+            if (constantValue != null) {
+                return constantValue.toConstantValue(descriptor?.type ?: TypeUtils.NO_EXPECTED_TYPE).toKtConstantValue()
+            }
+
+            return KtUnsupportedConstantValue
+        }
 
     override val isVal: Boolean
         get() = withValidityAssertion { !psi.isVar }
 
     override val callableIdIfNonLocal: CallableId?
-        get() = withValidityAssertion { psi.callableId }
+        get() = withValidityAssertion { psi.callableIdIfNonLocal }
 
     override val annotatedType: KtTypeAndAnnotations
-        get() = withValidityAssertion { descriptor?.type?.toKtTypeAndAnnotations(analysisSession) ?: createErrorTypeAndAnnotations() }
+        get() = withValidityAssertion { descriptor?.type?.toKtTypeAndAnnotations(analysisContext) ?: createErrorTypeAndAnnotations() }
 
     override val receiverType: KtTypeAndAnnotations?
         get() = withValidityAssertion {
             return if (psi.isExtensionDeclaration()) {
-                descriptor?.extensionReceiverParameter?.type?.toKtTypeAndAnnotations(analysisSession) ?: createErrorTypeAndAnnotations()
+                descriptor?.extensionReceiverParameter?.type?.toKtTypeAndAnnotations(analysisContext) ?: createErrorTypeAndAnnotations()
             } else {
                 null
             }
@@ -120,15 +146,15 @@ internal class KtFe10PsiKotlinPropertySymbol(
 
     override val dispatchType: KtType?
         get() = withValidityAssertion {
-            return if (!isStatic) {
-                descriptor?.dispatchReceiverParameter?.type?.toKtType(analysisSession) ?: createErrorType()
-            } else {
-                null
+            if (psi.isTopLevel) {
+                return null
             }
+
+            return descriptor?.dispatchReceiverParameter?.type?.toKtType(analysisContext) ?: createErrorType()
         }
 
     override val modality: Modality
-        get() = withValidityAssertion { psi.ktModality ?: descriptor?.modality ?: Modality.FINAL }
+        get() = withValidityAssertion { psi.ktModality ?: descriptor?.ktModality ?: Modality.FINAL }
 
     override val visibility: Visibility
         get() = withValidityAssertion { psi.ktVisibility ?: descriptor?.ktVisibility ?: Visibilities.Public }

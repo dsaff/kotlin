@@ -5,15 +5,19 @@
 
 package org.jetbrains.kotlin.fir.analysis.checkers.declaration
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.config.LanguageFeature
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationUseSiteTarget
 import org.jetbrains.kotlin.descriptors.annotations.KotlinTarget
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporter
+import org.jetbrains.kotlin.diagnostics.hasValOrVar
+import org.jetbrains.kotlin.diagnostics.reportOn
 import org.jetbrains.kotlin.fir.FirAnnotationContainer
-import org.jetbrains.kotlin.fir.FirFakeSourceElementKind
 import org.jetbrains.kotlin.fir.analysis.checkers.*
 import org.jetbrains.kotlin.fir.analysis.checkers.context.CheckerContext
 import org.jetbrains.kotlin.fir.analysis.checkers.context.findClosest
-import org.jetbrains.kotlin.fir.analysis.diagnostics.*
+import org.jetbrains.kotlin.fir.analysis.diagnostics.FirErrors
+import org.jetbrains.kotlin.fir.analysis.diagnostics.withSuppressedDiagnostics
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.hasBackingField
 import org.jetbrains.kotlin.fir.expressions.FirAnnotation
@@ -28,12 +32,12 @@ import org.jetbrains.kotlin.fir.types.customAnnotations
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.StandardClassIds
 
-object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
+object FirAnnotationChecker : FirBasicDeclarationChecker() {
     private val deprecatedClassId = FqName("kotlin.Deprecated")
     private val deprecatedSinceKotlinClassId = FqName("kotlin.DeprecatedSinceKotlin")
 
     override fun check(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         context: CheckerContext,
         reporter: DiagnosticReporter
     ) {
@@ -63,7 +67,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
         if (declaration is FirProperty) {
             checkRepeatedAnnotationsInProperty(declaration, context, reporter)
         } else if (declaration is FirCallableDeclaration) {
-            if (declaration.source?.kind !is FirFakeSourceElementKind) {
+            if (declaration.source?.kind !is KtFakeSourceElementKind) {
                 checkRepeatedAnnotations(declaration.returnTypeRef.coneTypeSafe(), context, reporter)
             }
         } else if (declaration is FirTypeAlias) {
@@ -72,7 +76,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkAnnotationTarget(
-        declaration: FirAnnotatedDeclaration,
+        declaration: FirDeclaration,
         annotation: FirAnnotation,
         context: CheckerContext,
         reporter: DiagnosticReporter
@@ -110,7 +114,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
                 context
             )
         } else {
-            if (declaration is FirProperty && declaration.source?.kind == FirFakeSourceElementKind.PropertyFromParameter) return
+            if (declaration is FirProperty && declaration.source?.kind == KtFakeSourceElementKind.PropertyFromParameter) return
             reporter.reportOn(
                 annotation.source,
                 FirErrors.WRONG_ANNOTATION_TARGET,
@@ -121,13 +125,13 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
     }
 
     private fun checkAnnotationUseSiteTarget(
-        annotated: FirAnnotatedDeclaration,
+        annotated: FirDeclaration,
         annotation: FirAnnotation,
         target: AnnotationUseSiteTarget,
         context: CheckerContext,
         reporter: DiagnosticReporter
     ) {
-        if (annotation.source?.kind == FirFakeSourceElementKind.FromUseSiteTarget) return
+        if (annotation.source?.kind == KtFakeSourceElementKind.FromUseSiteTarget) return
         when (target) {
             AnnotationUseSiteTarget.PROPERTY,
             AnnotationUseSiteTarget.PROPERTY_GETTER -> {
@@ -161,7 +165,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
                         reporter.reportOn(annotation.source, FirErrors.INAPPLICABLE_PARAM_TARGET, context)
                     }
                 }
-                annotated is FirProperty && annotated.source?.kind == FirFakeSourceElementKind.PropertyFromParameter -> {
+                annotated is FirProperty && annotated.source?.kind == KtFakeSourceElementKind.PropertyFromParameter -> {
                 }
                 else -> reporter.reportOn(annotation.source, FirErrors.INAPPLICABLE_PARAM_TARGET, context)
             }
@@ -259,7 +263,7 @@ object FirAnnotationChecker : FirAnnotatedDeclarationChecker() {
 
             if (annotation.annotationTypeRef.coneType in existingAnnotations && !annotation.isRepeatable(context.session)) {
                 val factory = if (isError) FirErrors.REPEATED_ANNOTATION else FirErrors.REPEATED_ANNOTATION_WARNING
-                if (annotation.source?.kind !is FirFakeSourceElementKind) {
+                if (annotation.source?.kind !is KtFakeSourceElementKind) {
                     reporter.reportOn(annotation.source, factory, context)
                 }
             }

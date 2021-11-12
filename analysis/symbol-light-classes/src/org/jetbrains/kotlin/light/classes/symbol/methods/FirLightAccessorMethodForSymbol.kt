@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.analysis.api.symbols.KtPropertyAccessorSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertyGetterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertySetterSymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertySymbol
+import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
 import org.jetbrains.kotlin.load.java.JvmAbi.getterName
 import org.jetbrains.kotlin.load.java.JvmAbi.setterName
 import org.jetbrains.kotlin.psi.KtDeclaration
@@ -39,7 +40,7 @@ internal class FirLightAccessorMethodForSymbol(
         if (isGetter) getterName(this) else setterName(this)
 
     private val _name: String by lazyPub {
-        propertyAccessorSymbol.getJvmNameFromAnnotation() ?: run {
+        propertyAccessorSymbol.getJvmNameFromAnnotation(accessorSite) ?: run {
             val defaultName = containingPropertySymbol.name.identifier.let {
                 if (containingClass.isAnnotationType) it else it.abiName()
             }
@@ -150,9 +151,12 @@ internal class FirLightAccessorMethodForSymbol(
     private val _returnedType: PsiType by lazyPub {
         if (!isGetter) return@lazyPub PsiType.VOID
         analyzeWithSymbolAsContext(containingPropertySymbol) {
-            containingPropertySymbol.annotatedType.type.asPsiType(this@FirLightAccessorMethodForSymbol)
-                ?: this@FirLightAccessorMethodForSymbol.nonExistentType()
-        }
+            containingPropertySymbol.annotatedType.type.asPsiType(
+                this@FirLightAccessorMethodForSymbol,
+                KtTypeMappingMode.RETURN_TYPE,
+                containingClass.isAnnotationType
+            )
+        } ?: nonExistentType()
     }
 
     override fun getReturnType(): PsiType = _returnedType

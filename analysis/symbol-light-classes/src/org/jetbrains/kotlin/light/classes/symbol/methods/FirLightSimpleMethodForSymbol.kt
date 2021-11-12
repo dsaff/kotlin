@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.asJava.builder.LightMemberOrigin
 import org.jetbrains.kotlin.asJava.classes.lazyPub
 import org.jetbrains.kotlin.analysis.api.isValid
 import org.jetbrains.kotlin.analysis.api.symbols.KtFunctionSymbol
+import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.utils.addToStdlib.ifTrue
 import java.util.*
@@ -54,13 +55,20 @@ internal class FirLightSimpleMethodForSymbol(
         _typeParameterList?.typeParameters ?: PsiTypeParameter.EMPTY_ARRAY
 
     private fun computeAnnotations(isPrivate: Boolean): List<PsiAnnotation> {
-        val nullability = if (isVoidReturnType || isPrivate) {
+        val nullability = if (isPrivate) {
             NullabilityType.Unknown
         } else {
-            analyzeWithSymbolAsContext(functionSymbol) {
-                getTypeNullability(
-                    functionSymbol.annotatedType.type
-                )
+            analyzeWithSymbolAsContext(functionSymbol) l@{
+                val ktType =
+                    when {
+                        functionSymbol.isSuspend -> // Any?
+                            return@l NullabilityType.Nullable
+                        isVoidReturnType ->
+                            return@l NullabilityType.Unknown
+                        else ->
+                            functionSymbol.annotatedType.type
+                    }
+                getTypeNullability(ktType)
             }
         }
 
@@ -128,14 +136,21 @@ internal class FirLightSimpleMethodForSymbol(
         }
 
     private val _returnedType: PsiType by lazyPub {
-        if (isVoidReturnType) return@lazyPub PsiType.VOID
         analyzeWithSymbolAsContext(functionSymbol) {
             val ktType =
-                if (functionSymbol.isSuspend)
-                    analysisSession.builtinTypes.NULLABLE_ANY
-                else
-                    functionSymbol.annotatedType.type
-            ktType.asPsiType(this@FirLightSimpleMethodForSymbol)
+                when {
+                    functionSymbol.isSuspend -> // Any?
+                        analysisSession.builtinTypes.NULLABLE_ANY
+                    isVoidReturnType ->
+                        return@lazyPub PsiType.VOID
+                    else ->
+                        functionSymbol.annotatedType.type
+                }
+            ktType.asPsiType(
+                this@FirLightSimpleMethodForSymbol,
+                KtTypeMappingMode.RETURN_TYPE,
+                containingClass.isAnnotationType
+            )
         } ?: nonExistentType()
     }
 

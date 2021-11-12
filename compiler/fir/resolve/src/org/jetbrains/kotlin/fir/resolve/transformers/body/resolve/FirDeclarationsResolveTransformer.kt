@@ -5,8 +5,10 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers.body.resolve
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.builder.buildValueParameter
@@ -328,7 +330,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
             variable.transformAccessors()
         }
         variable.transformOtherChildren(transformer, ResolutionMode.ContextIndependent)
-        context.storeVariable(variable)
+        context.storeVariable(variable, session)
         dataFlowAnalyzer.exitLocalVariableDeclaration(variable, hadExplicitType)
         return variable
     }
@@ -538,7 +540,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
         doTransformTypeParameters(simpleFunction)
 
         val containingDeclaration = context.containerIfAny
-        return context.withSimpleFunction(simpleFunction) {
+        return context.withSimpleFunction(simpleFunction, session) {
             // TODO: I think it worth creating something like runAllPhasesForLocalFunction
             if (containingDeclaration != null && containingDeclaration !is FirClass) {
                 // For class members everything should be already prepared
@@ -633,7 +635,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
                 constructor.transformValueParameters(transformer, data)
             }
             constructor.transformDelegatedConstructor(transformer, data)
-            context.forConstructorBody(constructor) {
+            context.forConstructorBody(constructor, session) {
                 constructor.transformBody(transformer, data)
             }
         }
@@ -649,7 +651,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
     ): FirAnonymousInitializer {
         if (implicitTypeOnly) return anonymousInitializer
         dataFlowAnalyzer.enterInitBlock(anonymousInitializer)
-        return context.withAnonymousInitializer(anonymousInitializer) {
+        return context.withAnonymousInitializer(anonymousInitializer, session) {
             val result =
                 transformDeclarationContent(anonymousInitializer, ResolutionMode.ContextIndependent) as FirAnonymousInitializer
             val graph = dataFlowAnalyzer.exitInitBlock(result)
@@ -669,7 +671,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
         }
 
         dataFlowAnalyzer.enterValueParameter(valueParameter)
-        val result = context.withValueParameter(valueParameter) {
+        val result = context.withValueParameter(valueParameter, session) {
             transformDeclarationContent(
                 valueParameter,
                 withExpectedType(valueParameter.returnTypeRef)
@@ -814,7 +816,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
             lambda.valueParameters.isEmpty() && singleParameterType != null -> {
                 val name = Name.identifier("it")
                 val itParam = buildValueParameter {
-                    source = lambda.source?.fakeElement(FirFakeSourceElementKind.ItLambdaParameter)
+                    source = lambda.source?.fakeElement(KtFakeSourceElementKind.ItLambdaParameter)
                     moduleData = session.moduleData
                     origin = FirDeclarationOrigin.Source
                     returnTypeRef = singleParameterType.toFirResolvedTypeRef()
@@ -858,7 +860,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
                     override fun <E : FirElement> transformElement(element: E, data: FirExpression): E {
                         if (element == lastStatement) {
                             val returnExpression = buildReturnExpression {
-                                source = element.source?.fakeElement(FirFakeSourceElementKind.ImplicitReturn)
+                                source = element.source?.fakeElement(KtFakeSourceElementKind.ImplicitReturn)
                                 result = lastStatement
                                 target = FirFunctionTarget(null, isLambda = this@addReturn.isLambda).also {
                                     it.bind(this@addReturn)
@@ -979,7 +981,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
             }
             is FirErrorTypeRef -> buildErrorTypeRef {
                 diagnostic = this@toExpectedTypeRef.diagnostic
-                this@toExpectedTypeRef.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)?.let {
+                this@toExpectedTypeRef.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)?.let {
                     source = it
                 }
             }
@@ -987,7 +989,7 @@ open class FirDeclarationsResolveTransformer(transformer: FirBodyResolveTransfor
                 buildResolvedTypeRef {
                     type = this@toExpectedTypeRef.coneType
                     annotations.addAll(this@toExpectedTypeRef.annotations)
-                    this@toExpectedTypeRef.source?.fakeElement(FirFakeSourceElementKind.PropertyFromParameter)?.let {
+                    this@toExpectedTypeRef.source?.fakeElement(KtFakeSourceElementKind.PropertyFromParameter)?.let {
                         source = it
                     }
                 }

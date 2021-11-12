@@ -1062,10 +1062,12 @@ sealed class KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
 
     abstract class AssigningSingleElementToVarargInNamedFormFunctionError : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = AssigningSingleElementToVarargInNamedFormFunctionError::class
+        abstract val expectedArrayType: KtType
     }
 
     abstract class AssigningSingleElementToVarargInNamedFormFunctionWarning : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = AssigningSingleElementToVarargInNamedFormFunctionWarning::class
+        abstract val expectedArrayType: KtType
     }
 
     abstract class AssigningSingleElementToVarargInNamedFormAnnotationError : KtFirDiagnostic<KtExpression>() {
@@ -2026,7 +2028,7 @@ sealed class KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
         abstract val enumEntry: KtSymbol
     }
 
-    abstract class UninitializedEnumCompanion : KtFirDiagnostic<KtSimpleNameExpression>() {
+    abstract class UninitializedEnumCompanion : KtFirDiagnostic<KtExpression>() {
         override val diagnosticClass get() = UninitializedEnumCompanion::class
         abstract val enumClass: KtClassLikeSymbol
     }
@@ -2166,8 +2168,23 @@ sealed class KtFirDiagnostic<PSI : PsiElement> : KtDiagnosticWithPsi<PSI> {
         override val diagnosticClass get() = UselessElvisRightIsNull::class
     }
 
+    abstract class CannotCheckForErased : KtFirDiagnostic<PsiElement>() {
+        override val diagnosticClass get() = CannotCheckForErased::class
+        abstract val type: KtType
+    }
+
+    abstract class CastNeverSucceeds : KtFirDiagnostic<KtBinaryExpressionWithTypeRHS>() {
+        override val diagnosticClass get() = CastNeverSucceeds::class
+    }
+
     abstract class UselessCast : KtFirDiagnostic<KtBinaryExpressionWithTypeRHS>() {
         override val diagnosticClass get() = UselessCast::class
+    }
+
+    abstract class UncheckedCast : KtFirDiagnostic<KtBinaryExpressionWithTypeRHS>() {
+        override val diagnosticClass get() = UncheckedCast::class
+        abstract val originalType: KtType
+        abstract val targetType: KtType
     }
 
     abstract class UselessIsCheck : KtFirDiagnostic<KtElement>() {

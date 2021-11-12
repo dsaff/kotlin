@@ -6,7 +6,9 @@
 package org.jetbrains.kotlin.fir.backend
 
 import com.intellij.psi.PsiCompiledElement
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.KtNodeTypes
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.InlineClassRepresentation
 import org.jetbrains.kotlin.descriptors.Modality
@@ -23,6 +25,7 @@ import org.jetbrains.kotlin.fir.declarations.utils.visibility
 import org.jetbrains.kotlin.fir.expressions.*
 import org.jetbrains.kotlin.fir.extensions.declarationGenerators
 import org.jetbrains.kotlin.fir.extensions.extensionService
+import org.jetbrains.kotlin.fir.expressions.impl.FirNoReceiverExpression
 import org.jetbrains.kotlin.fir.references.FirErrorNamedReference
 import org.jetbrains.kotlin.fir.references.FirReference
 import org.jetbrains.kotlin.fir.references.FirResolvedNamedReference
@@ -42,7 +45,10 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.declarations.UNDEFINED_PARAMETER_INDEX
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.expressions.IrConstKind
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrStatementOrigin
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
@@ -50,11 +56,15 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrErrorTypeImpl
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.SpecialNames
 import org.jetbrains.kotlin.name.StandardClassIds
+import org.jetbrains.kotlin.psi
+import org.jetbrains.kotlin.psi.KtParameter
 import org.jetbrains.kotlin.psi.KtQualifiedExpression
 import org.jetbrains.kotlin.psi.psiUtil.endOffset
 import org.jetbrains.kotlin.psi.psiUtil.startOffsetSkippingComments
+import org.jetbrains.kotlin.resolve.calls.util.isSingleUnderscore
 import org.jetbrains.kotlin.types.ConstantValueKind
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -65,7 +75,7 @@ internal fun <T : IrElement> FirElement.convertWithOffsets(
     return source.convertWithOffsets(f)
 }
 
-internal fun <T : IrElement> FirSourceElement?.convertWithOffsets(
+internal fun <T : IrElement> KtSourceElement?.convertWithOffsets(
     f: (startOffset: Int, endOffset: Int) -> T
 ): T {
     val psi = psi
@@ -152,17 +162,19 @@ fun FirClassifierSymbol<*>.toSymbol(
 }
 
 private fun FirBasedSymbol<*>.toSymbolForCall(
+    dispatchReceiver: FirExpression,
     session: FirSession,
     classifierStorage: Fir2IrClassifierStorage,
     declarationStorage: Fir2IrDeclarationStorage,
     preferGetter: Boolean
 ) = when (this) {
-    is FirCallableSymbol<*> -> unwrapCallRepresentative().toSymbolForCall(declarationStorage, preferGetter)
+    is FirCallableSymbol<*> -> unwrapCallRepresentative().toSymbolForCall(dispatchReceiver, declarationStorage, preferGetter)
     is FirClassifierSymbol<*> -> toSymbol(session, classifierStorage)
     else -> error("Unknown symbol: $this")
 }
 
 fun FirReference.toSymbolForCall(
+    dispatchReceiver: FirExpression,
     session: FirSession,
     classifierStorage: Fir2IrClassifierStorage,
     declarationStorage: Fir2IrDeclarationStorage,
@@ -170,8 +182,10 @@ fun FirReference.toSymbolForCall(
     preferGetter: Boolean = true
 ): IrSymbol? {
     return when (this) {
-        is FirResolvedNamedReference -> resolvedSymbol.toSymbolForCall(session, classifierStorage, declarationStorage, preferGetter)
-        is FirErrorNamedReference -> candidateSymbol?.toSymbolForCall(session, classifierStorage, declarationStorage, preferGetter)
+        is FirResolvedNamedReference ->
+            resolvedSymbol.toSymbolForCall(dispatchReceiver, session, classifierStorage, declarationStorage, preferGetter)
+        is FirErrorNamedReference ->
+            candidateSymbol?.toSymbolForCall(dispatchReceiver, session, classifierStorage, declarationStorage, preferGetter)
         is FirThisReference -> {
             when (val boundSymbol = boundSymbol) {
                 is FirClassSymbol<*> -> classifierStorage.getIrClassSymbol(boundSymbol).owner.thisReceiver?.symbol
@@ -187,9 +201,19 @@ fun FirReference.toSymbolForCall(
     }
 }
 
-private fun FirCallableSymbol<*>.toSymbolForCall(declarationStorage: Fir2IrDeclarationStorage, preferGetter: Boolean): IrSymbol? =
-    when (this) {
-        is FirFunctionSymbol<*> -> declarationStorage.getIrFunctionSymbol(this)
+private fun FirCallableSymbol<*>.toSymbolForCall(
+    dispatchReceiver: FirExpression,
+    declarationStorage: Fir2IrDeclarationStorage,
+    preferGetter: Boolean
+): IrSymbol? {
+    val dispatchReceiverLookupTag = when (dispatchReceiver) {
+        is FirNoReceiverExpression -> null
+        else -> {
+            val coneType = dispatchReceiver.typeRef.coneType
+            dispatchReceiver.typeRef.coneType.findClassRepresentation(coneType, declarationStorage.session)
+        }
+    }
+    return when (this) {
         is FirSimpleSyntheticPropertySymbol -> {
             (fir as? FirSyntheticProperty)?.let { syntheticProperty ->
                 val delegateSymbol = if (preferGetter) {
@@ -198,16 +222,18 @@ private fun FirCallableSymbol<*>.toSymbolForCall(declarationStorage: Fir2IrDecla
                     syntheticProperty.setter?.delegate?.symbol
                         ?: throw AssertionError("Written synthetic property must have a setter")
                 }
-                delegateSymbol.unwrapCallRepresentative().toSymbolForCall(declarationStorage, preferGetter)
+                delegateSymbol.unwrapCallRepresentative().toSymbolForCall(dispatchReceiver, declarationStorage, preferGetter)
             } ?: declarationStorage.getIrPropertySymbol(this)
         }
-        is FirPropertySymbol -> declarationStorage.getIrPropertySymbol(this)
+        is FirFunctionSymbol<*> -> declarationStorage.getIrFunctionSymbol(this, dispatchReceiverLookupTag)
+        is FirPropertySymbol -> declarationStorage.getIrPropertySymbol(this, dispatchReceiverLookupTag)
         is FirFieldSymbol -> declarationStorage.getIrFieldSymbol(this)
         is FirBackingFieldSymbol -> declarationStorage.getIrBackingFieldSymbol(this)
         is FirDelegateFieldSymbol -> declarationStorage.getIrDelegateFieldSymbol(this)
         is FirVariableSymbol<*> -> declarationStorage.getIrValueSymbol(this)
         else -> null
     }
+}
 
 fun FirConstExpression<*>.getIrConstKind(): IrConstKind<*> = when (kind) {
     ConstantValueKind.IntegerLiteral -> {
@@ -466,7 +492,7 @@ internal fun FirReference.statementOrigin(): IrStatementOrigin? {
                     IrStatementOrigin.FOR_LOOP_ITERATOR
                 source?.elementType == KtNodeTypes.OPERATION_REFERENCE ->
                     nameToOperationConventionOrigin[symbol.callableId.callableName]
-                source?.kind is FirFakeSourceElementKind.DesugaredComponentFunctionCall ->
+                source?.kind is KtFakeSourceElementKind.DesugaredComponentFunctionCall ->
                     IrStatementOrigin.COMPONENT_N.withIndex(name.asString().removePrefix("component").toInt())
                 else ->
                     null
@@ -482,16 +508,18 @@ internal fun IrDeclarationParent.declareThisReceiverParameter(
     thisType: IrType,
     thisOrigin: IrDeclarationOrigin,
     startOffset: Int = this.startOffset,
-    endOffset: Int = this.endOffset
-): IrValueParameter =
-    symbolTable.irFactory.createValueParameter(
+    endOffset: Int = this.endOffset,
+    name: Name = SpecialNames.THIS
+): IrValueParameter {
+    return symbolTable.irFactory.createValueParameter(
         startOffset, endOffset, thisOrigin, IrValueParameterSymbolImpl(),
-        SpecialNames.THIS, UNDEFINED_PARAMETER_INDEX, thisType,
+        name, UNDEFINED_PARAMETER_INDEX, thisType,
         varargElementType = null, isCrossinline = false, isNoinline = false,
         isHidden = false, isAssignable = false
     ).apply {
         this.parent = this@declareThisReceiverParameter
     }
+}
 
 fun FirClass.irOrigin(firProvider: FirProvider): IrDeclarationOrigin = when {
     firProvider.getFirClassifierContainerFileIfAny(symbol) != null -> IrDeclarationOrigin.DEFINED
@@ -609,6 +637,15 @@ fun FirSession.createFilesWithGeneratedDeclarations(): List<FirFile> {
 fun FirDeclaration?.computeIrOrigin(predefinedOrigin: IrDeclarationOrigin? = null): IrDeclarationOrigin {
     return predefinedOrigin
         ?: (this?.origin as? FirDeclarationOrigin.Plugin)?.let { IrPluginDeclarationOrigin(it.key) }
+        ?: ((this as? FirValueParameter)?.source.psi as? KtParameter)?.let {
+            if (it.isSingleUnderscore) {
+                IrDeclarationOrigin.UNDERSCORE_PARAMETER
+            } else if (it.destructuringDeclaration != null) {
+                IrDeclarationOrigin.DESTRUCTURED_OBJECT_PARAMETER
+            } else {
+                null
+            }
+        }
         ?: IrDeclarationOrigin.DEFINED
 }
 
@@ -631,7 +668,7 @@ fun FirVariableAssignment.getIrAssignmentOrigin(): IrStatementOrigin {
                     IrStatementOrigin.POSTFIX_DECR
             }
 
-            if (calleeReference.source?.kind is FirFakeSourceElementKind &&
+            if (calleeReference.source?.kind is KtFakeSourceElementKind &&
                 calleeReferenceSymbol == rValue.explicitReceiver?.toResolvedCallableSymbol()
             ) {
                 if (callableName == OperatorNameConventions.PLUS) {

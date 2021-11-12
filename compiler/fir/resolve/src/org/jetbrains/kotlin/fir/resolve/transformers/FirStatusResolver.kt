@@ -40,6 +40,7 @@ class FirStatusResolver(
             FirDeclarationStatusImpl.Modifier.CONST,
             FirDeclarationStatusImpl.Modifier.LATEINIT,
             FirDeclarationStatusImpl.Modifier.TAILREC,
+            FirDeclarationStatusImpl.Modifier.EXTERNAL,
         )
 
         private val MODIFIERS_FROM_OVERRIDDEN: List<FirDeclarationStatusImpl.Modifier> =
@@ -220,7 +221,7 @@ class FirStatusResolver(
             containingClass?.symbol?.toLookupTag(), forClass = declaration is FirClass
         )
         val effectiveVisibility = parentEffectiveVisibility.lowerBound(selfEffectiveVisibility, session.typeContext)
-        val annotations = ((containingProperty ?: declaration) as? FirAnnotatedDeclaration)?.annotations ?: emptyList()
+        val annotations = (containingProperty ?: declaration).annotations
 
         val hasPublishedApiAnnotation = annotations.any {
             it.typeRef.coneTypeSafe<ConeClassLikeType>()?.lookupTag?.classId == StandardClassIds.Annotations.PublishedApi

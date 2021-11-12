@@ -1,8 +1,3 @@
-/*
- * Copyright 2010-2021 JetBrains s.r.o. and Kotlin Programming Language contributors.
- * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
- */
-
 import org.jetbrains.kotlin.gradle.dsl.KotlinCompile
 
 plugins {
@@ -18,7 +13,7 @@ val commonMainSources by task<Sync> {
 }
 
 kotlin {
-    js(IR) {
+    wasm {
         nodejs()
     }
 
@@ -29,7 +24,7 @@ kotlin {
             }
             kotlin.srcDir(commonMainSources.get().destinationDir)
         }
-        val jsMain by getting {
+        val wasmMain by getting {
             dependencies {
                 api(project(":kotlin-stdlib-wasm"))
             }
@@ -46,7 +41,14 @@ tasks.withType<KotlinCompile<*>>().configureEach {
     )
 }
 
-tasks.named("compileKotlinJs") {
+tasks.named("compileKotlinWasm") {
     (this as KotlinCompile<*>).kotlinOptions.freeCompilerArgs += "-Xir-module-name=kotlin-test"
     dependsOn(commonMainSources)
+}
+
+tasks.register<Jar>("sourcesJar") {
+    dependsOn(commonMainSources)
+    archiveClassifier.set("sources")
+    from(kotlin.sourceSets["commonMain"].kotlin)
+    from(kotlin.sourceSets["wasmMain"].kotlin)
 }

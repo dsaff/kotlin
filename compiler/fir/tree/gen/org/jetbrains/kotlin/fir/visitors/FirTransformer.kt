@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.fir.expressions.FirExpression
 import org.jetbrains.kotlin.fir.declarations.FirDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirTypeParameterRefsOwner
 import org.jetbrains.kotlin.fir.declarations.FirTypeParametersOwner
-import org.jetbrains.kotlin.fir.declarations.FirAnnotatedDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirMemberDeclaration
 import org.jetbrains.kotlin.fir.declarations.FirAnonymousInitializer
 import org.jetbrains.kotlin.fir.declarations.FirTypedDeclaration
@@ -67,6 +66,7 @@ import org.jetbrains.kotlin.fir.expressions.FirTryExpression
 import org.jetbrains.kotlin.fir.expressions.FirConstExpression
 import org.jetbrains.kotlin.fir.types.FirTypeProjection
 import org.jetbrains.kotlin.fir.types.FirStarProjection
+import org.jetbrains.kotlin.fir.types.FirPlaceholderProjection
 import org.jetbrains.kotlin.fir.types.FirTypeProjectionWithVariance
 import org.jetbrains.kotlin.fir.expressions.FirArgumentList
 import org.jetbrains.kotlin.fir.expressions.FirCall
@@ -201,10 +201,6 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     open fun transformTypeParametersOwner(typeParametersOwner: FirTypeParametersOwner, data: D): FirTypeParametersOwner {
         return transformElement(typeParametersOwner, data)
-    }
-
-    open fun transformAnnotatedDeclaration(annotatedDeclaration: FirAnnotatedDeclaration, data: D): FirAnnotatedDeclaration {
-        return transformElement(annotatedDeclaration, data)
     }
 
     open fun transformMemberDeclaration(memberDeclaration: FirMemberDeclaration, data: D): FirMemberDeclaration {
@@ -389,6 +385,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     open fun transformStarProjection(starProjection: FirStarProjection, data: D): FirTypeProjection {
         return transformElement(starProjection, data)
+    }
+
+    open fun transformPlaceholderProjection(placeholderProjection: FirPlaceholderProjection, data: D): FirTypeProjection {
+        return transformElement(placeholderProjection, data)
     }
 
     open fun transformTypeProjectionWithVariance(typeProjectionWithVariance: FirTypeProjectionWithVariance, data: D): FirTypeProjection {
@@ -731,10 +731,6 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
         return transformTypeParametersOwner(typeParametersOwner, data)
     }
 
-    final override fun visitAnnotatedDeclaration(annotatedDeclaration: FirAnnotatedDeclaration, data: D): FirAnnotatedDeclaration {
-        return transformAnnotatedDeclaration(annotatedDeclaration, data)
-    }
-
     final override fun visitMemberDeclaration(memberDeclaration: FirMemberDeclaration, data: D): FirMemberDeclaration {
         return transformMemberDeclaration(memberDeclaration, data)
     }
@@ -917,6 +913,10 @@ abstract class FirTransformer<in D> : FirVisitor<FirElement, D>() {
 
     final override fun visitStarProjection(starProjection: FirStarProjection, data: D): FirTypeProjection {
         return transformStarProjection(starProjection, data)
+    }
+
+    final override fun visitPlaceholderProjection(placeholderProjection: FirPlaceholderProjection, data: D): FirTypeProjection {
+        return transformPlaceholderProjection(placeholderProjection, data)
     }
 
     final override fun visitTypeProjectionWithVariance(typeProjectionWithVariance: FirTypeProjectionWithVariance, data: D): FirTypeProjection {

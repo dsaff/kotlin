@@ -7,13 +7,11 @@ package org.jetbrains.kotlin.gradle.targets.js.yarn
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
-import org.gradle.api.attributes.Usage
 import org.gradle.api.plugins.BasePlugin
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinUsages
-import org.jetbrains.kotlin.gradle.plugin.mpp.disambiguateName
-import org.jetbrains.kotlin.gradle.plugin.usesPlatformOf
 import org.jetbrains.kotlin.gradle.targets.js.MultiplePluginDeclarationDetector
 import org.jetbrains.kotlin.gradle.targets.js.nodejs.NodeJsRootPlugin
+import org.jetbrains.kotlin.gradle.targets.js.npm.RequiresNpmDependencies
+import org.jetbrains.kotlin.gradle.targets.js.npm.resolver.implementing
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.KotlinNpmInstallTask
 import org.jetbrains.kotlin.gradle.targets.js.npm.tasks.RootPackageJsonTask
 import org.jetbrains.kotlin.gradle.tasks.CleanDataTask
@@ -46,9 +44,32 @@ open class YarnPlugin : Plugin<Project> {
             task.description = "Create root package.json"
 
             task.mustRunAfter(rootClean)
+
+            // Yes, we need to break Task Configuration Avoidance here
+            // In case when we need to create package.json's files and execute kotlinNpmInstall,
+            // We need to configure all RequiresNpmDependencies tasks to install them,
+            // Because we need to persist yarn.lock
+            // We execute this block in configure phase of rootPackageJson to be sure,
+            // That Task Configuration Avoidance will not be broken for tasks not related with NPM installing
+            // https://youtrack.jetbrains.com/issue/KT-48241
+            project.allprojects
+                .forEach {
+                    val fn: (Project) -> Unit = {
+                        it.tasks.implementing(RequiresNpmDependencies::class)
+                            .forEach {}
+                    }
+                    if (it.state.executed) {
+                        fn(it)
+                    } else {
+                        it.afterEvaluate {
+                            fn(it)
+                        }
+                    }
+                }
         }
 
-        tasks.named(KotlinNpmInstallTask.NAME).configure {
+        val kotlinNpmInstall = tasks.named(KotlinNpmInstallTask.NAME)
+        kotlinNpmInstall.configure {
             it.dependsOn(rootPackageJson)
             it.dependsOn(setupTask)
         }
@@ -56,6 +77,35 @@ open class YarnPlugin : Plugin<Project> {
         tasks.register("yarn" + CleanDataTask.NAME_SUFFIX, CleanDataTask::class.java) {
             it.cleanableStoreProvider = provider { yarnRootExtension.requireConfigured().cleanableStore }
             it.description = "Clean unused local yarn version"
+        }
+
+        val packageJsonUmbrella = nodeJs
+            .packageJsonUmbrellaTaskProvider
+
+        yarnRootExtension.rootPackageJsonTaskProvider.configure {
+            it.dependsOn(packageJsonUmbrella)
+        }
+
+        val storeYarnLock = tasks.register("kotlinStoreYarnLock", YarnLockCopyTask::class.java) {
+            it.dependsOn(kotlinNpmInstall)
+            it.inputFile.set(nodeJs.rootPackageDir.resolve("yarn.lock"))
+            it.outputDirectory.set(yarnRootExtension.lockFileDirectory)
+            it.fileName.set(yarnRootExtension.lockFileName)
+        }
+
+        val restoreYarnLock = tasks.register("kotlinRestoreYarnLock", YarnLockCopyTask::class.java) {
+            val lockFile = yarnRootExtension.lockFileDirectory.resolve(yarnRootExtension.lockFileName)
+            it.inputFile.set(yarnRootExtension.lockFileDirectory.resolve(yarnRootExtension.lockFileName))
+            it.outputDirectory.set(nodeJs.rootPackageDir)
+            it.fileName.set("yarn.lock")
+            it.onlyIf {
+                lockFile.exists()
+            }
+        }
+
+        kotlinNpmInstall.configure {
+            it.dependsOn(restoreYarnLock)
+            it.finalizedBy(storeYarnLock)
         }
     }
 

@@ -43,6 +43,7 @@ class IrModuleToJsTransformer(
     private val relativeRequirePath: Boolean = false,
     private val moduleToName: Map<IrModuleFragment, String> = emptyMap(),
     private val removeUnusedAssociatedObjects: Boolean = true,
+    private val generateGlobalThisPolyfill: Boolean = false
 ) {
     private val generateRegionComments = backendContext.configuration.getBoolean(JSConfigurationKeys.GENERATE_REGION_COMMENTS)
 
@@ -285,6 +286,7 @@ class IrModuleToJsTransformer(
     private fun generateModuleBody(modules: Iterable<IrModuleFragment>, staticContext: JsStaticContext): List<JsStatement> {
         val statements = mutableListOf<JsStatement>().also {
             if (!generateScriptModule) it += JsStringLiteral("use strict").makeStmt()
+            if (generateGlobalThisPolyfill) it += jsGlobalThisPolyfill()
         }
 
         val preDeclarationBlock = JsGlobalBlock()
@@ -411,7 +413,7 @@ class IrModuleToJsTransformer(
 
             assert(jsModule != null || jsQualifier != null)
 
-            val qualifiedReference: JsNameRef
+            val qualifiedReference: JsExpression
 
             if (jsModule != null) {
                 val internalName = declareFreshGlobal("\$module\$$jsModule")
@@ -433,7 +435,7 @@ class IrModuleToJsTransformer(
                 .forEach { declaration ->
                     val declName = getNameForExternalDeclaration(declaration)
                     importStatements.add(
-                        JsVars(JsVars.JsVar(declName, JsNameRef(declaration.getJsNameOrKotlinName().identifier, qualifiedReference)))
+                        JsVars(JsVars.JsVar(declName, jsElementAccess(declaration.getJsNameOrKotlinName().identifier, qualifiedReference)))
                     )
                 }
         }

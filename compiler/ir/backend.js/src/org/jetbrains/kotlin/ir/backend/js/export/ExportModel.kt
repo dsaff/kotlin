@@ -23,7 +23,7 @@ class ExportedNamespace(
     val declarations: List<ExportedDeclaration>
 ) : ExportedDeclaration()
 
-class ExportedFunction(
+data class ExportedFunction(
     val name: String,
     val returnType: ExportedType,
     val parameters: List<ExportedParameter>,
@@ -35,9 +35,14 @@ class ExportedFunction(
     val ir: IrSimpleFunction
 ) : ExportedDeclaration()
 
-class ExportedConstructor(
+data class ExportedConstructor(
     val parameters: List<ExportedParameter>,
     val isProtected: Boolean
+) : ExportedDeclaration()
+
+data class ExportedConstructSignature(
+    val parameters: List<ExportedParameter>,
+    val returnType: ExportedType,
 ) : ExportedDeclaration()
 
 class ExportedProperty(
@@ -50,13 +55,14 @@ class ExportedProperty(
     val isProtected: Boolean,
     val irGetter: IrFunction?,
     val irSetter: IrFunction?,
+    val exportedObject: ExportedClass? = null,
 ) : ExportedDeclaration()
 
 
 // TODO: Cover all cases with frontend and disable error declarations
 class ErrorDeclaration(val message: String) : ExportedDeclaration()
 
-class ExportedClass(
+data class ExportedClass(
     val name: String,
     val isInterface: Boolean = false,
     val isAbstract: Boolean = false,
@@ -89,6 +95,11 @@ sealed class ExportedType {
         object Nothing : Primitive("never")
     }
 
+    sealed class LiteralType<T : Any>(val value: T) : ExportedType() {
+        class StringLiteralType(value: String) : LiteralType<String>(value)
+        class NumberLiteralType(value: Number) : LiteralType<Number>(value)
+    }
+
     class Array(val elementType: ExportedType) : ExportedType()
     class Function(
         val parameterTypes: List<ExportedType>,
@@ -104,6 +115,8 @@ sealed class ExportedType {
     class InlineInterfaceType(
         val members: List<ExportedDeclaration>
     ) : ExportedType()
+
+    class UnionType(val lhs: ExportedType, val rhs: ExportedType) : ExportedType()
 
     class IntersectionType(val lhs: ExportedType, val rhs: ExportedType) : ExportedType()
 

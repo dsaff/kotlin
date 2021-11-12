@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.js.testNew.converters
 
-import com.google.common.collect.Lists
 import com.intellij.openapi.util.io.FileUtil
 import com.intellij.openapi.util.text.StringUtil
 import org.jetbrains.kotlin.cli.common.output.writeAllTo
@@ -38,31 +37,31 @@ class ClassicJsBackendFacade(
 ) : ClassicBackendFacade<BinaryArtifacts.Js>(testServices, ArtifactKinds.Js) {
     companion object {
         const val KOTLIN_TEST_INTERNAL = "\$kotlin_test_internal\$"
+
+        fun wrapWithModuleEmulationMarkers(content: String, moduleKind: ModuleKind, moduleId: String): String {
+            val escapedModuleId = StringUtil.escapeStringCharacters(moduleId)
+
+            return when (moduleKind) {
+                ModuleKind.COMMON_JS -> "$KOTLIN_TEST_INTERNAL.beginModule();\n" +
+                        "$content\n" +
+                        "$KOTLIN_TEST_INTERNAL.endModule(\"$escapedModuleId\");"
+
+                ModuleKind.AMD, ModuleKind.UMD ->
+                    "if (typeof $KOTLIN_TEST_INTERNAL !== \"undefined\") { " +
+                            "$KOTLIN_TEST_INTERNAL.setModuleId(\"$escapedModuleId\"); }\n" +
+                            "$content\n"
+
+                ModuleKind.PLAIN -> content
+
+                ModuleKind.ES -> error("Module emulation markers are not supported for ES modules")
+            }
+        }
     }
 
     constructor(testServices: TestServices) : this(testServices, incrementalCompilationEnabled = false)
 
     override val additionalServices: List<ServiceRegistrationData>
         get() = listOf(service(::JsClassicIncrementalDataProvider))
-
-    private fun wrapWithModuleEmulationMarkers(content: String, moduleKind: ModuleKind, moduleId: String): String {
-        val escapedModuleId = StringUtil.escapeStringCharacters(moduleId)
-
-        return when (moduleKind) {
-            ModuleKind.COMMON_JS -> "$KOTLIN_TEST_INTERNAL.beginModule();\n" +
-                    "$content\n" +
-                    "$KOTLIN_TEST_INTERNAL.endModule(\"$escapedModuleId\");"
-
-            ModuleKind.AMD, ModuleKind.UMD ->
-                "if (typeof $KOTLIN_TEST_INTERNAL !== \"undefined\") { " +
-                        "$KOTLIN_TEST_INTERNAL.setModuleId(\"$escapedModuleId\"); }\n" +
-                        "$content\n"
-
-            ModuleKind.PLAIN -> content
-
-            ModuleKind.ES -> error("Module emulation markers are not supported for ES modules")
-        }
-    }
 
     override fun transform(module: TestModule, inputArtifact: ClassicBackendInput): BinaryArtifacts.Js {
         val configuration = testServices.compilerConfigurationProvider.getCompilerConfiguration(module)

@@ -7,8 +7,10 @@ package org.jetbrains.kotlin.fir.lazy
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.fir.backend.*
-import org.jetbrains.kotlin.fir.backend.declareThisReceiverParameter
-import org.jetbrains.kotlin.fir.declarations.*
+import org.jetbrains.kotlin.fir.declarations.FirDeclarationOrigin
+import org.jetbrains.kotlin.fir.declarations.FirProperty
+import org.jetbrains.kotlin.fir.declarations.FirRegularClass
+import org.jetbrains.kotlin.fir.declarations.FirSimpleFunction
 import org.jetbrains.kotlin.fir.declarations.utils.*
 import org.jetbrains.kotlin.fir.dispatchReceiverClassOrNull
 import org.jetbrains.kotlin.fir.scopes.unsubstitutedScope
@@ -27,6 +29,7 @@ import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 class Fir2IrLazyClass(
     components: Fir2IrComponents,
@@ -159,6 +162,13 @@ class Fir2IrLazyClass(
                             // Handle values() / valueOf() separately
                             // TODO: handle other static functions / properties properly
                             result += declarationStorage.getIrFunctionSymbol(declaration.symbol).owner
+                        } else if (fir.classKind == ClassKind.ANNOTATION_CLASS && declaration.origin == FirDeclarationOrigin.Java) {
+                            // Java annotation values are exposed as properties.
+                            scope.processPropertiesByName(declaration.name) {
+                                if (it is FirPropertySymbol && it.dispatchReceiverClassOrNull() == fir.symbol.toLookupTag()) {
+                                    result += declarationStorage.getIrPropertySymbol(it).owner as IrProperty
+                                }
+                            }
                         } else {
                             scope.processFunctionsByName(declaration.name) {
                                 if (it.dispatchReceiverClassOrNull() == fir.symbol.toLookupTag()) {
@@ -214,9 +224,9 @@ class Fir2IrLazyClass(
     private fun FirNamedFunctionSymbol.isAbstractMethodOfAny(): Boolean {
         val fir = fir
         if (fir.modality != Modality.ABSTRACT) return false
-        return when (fir.name.asString()) {
-            "equals" -> fir.valueParameters.singleOrNull()?.returnTypeRef?.isNullableAny == true
-            "hashCode", "toString" -> fir.valueParameters.isEmpty()
+        return when (fir.name) {
+            OperatorNameConventions.EQUALS -> fir.valueParameters.singleOrNull()?.returnTypeRef?.isNullableAny == true
+            OperatorNameConventions.HASH_CODE, OperatorNameConventions.TO_STRING -> fir.valueParameters.isEmpty()
             else -> false
         }
     }

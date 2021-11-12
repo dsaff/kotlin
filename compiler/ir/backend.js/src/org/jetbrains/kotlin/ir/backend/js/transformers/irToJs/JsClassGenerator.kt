@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.ir.backend.js.transformers.irToJs
 
 import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.ir.backend.js.export.isEnumFakeOverriddenDeclaration
 import org.jetbrains.kotlin.ir.backend.js.export.isExported
 import org.jetbrains.kotlin.ir.backend.js.export.isOverriddenExported
 import org.jetbrains.kotlin.ir.backend.js.utils.*
@@ -19,6 +20,7 @@ import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.isAny
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.js.backend.ast.*
+import org.jetbrains.kotlin.js.common.isValidES5Identifier
 import org.jetbrains.kotlin.utils.addIfNotNull
 
 class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationContext) {
@@ -77,11 +79,13 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                     properties.addIfNotNull(declaration.correspondingPropertySymbol?.owner)
 
                     if (es6mode) {
-                        val (_, function) = generateMemberFunction(declaration)
+                        val (memberRef, function) = generateMemberFunction(declaration)
                         function?.let { jsClass.members += it }
+                        declaration.generateAssignmentIfMangled(memberRef)
                     } else {
                         val (memberRef, function) = generateMemberFunction(declaration)
                         function?.let { classBlock.statements += jsAssignment(memberRef, it.apply { name = null }).makeStmt() }
+                        declaration.generateAssignmentIfMangled(memberRef)
                     }
                 }
                 is IrClass -> {
@@ -97,7 +101,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
 
         classBlock.statements += generateClassMetadata()
 
-        if (!irClass.isInterface && !irClass.isEnumClass && !irClass.isEnumEntry) {
+        if (!irClass.isInterface && !irClass.isEnumEntry) {
             for (property in properties) {
                 if (property.getter?.extensionReceiverParameter != null || property.setter?.extensionReceiverParameter != null)
                     continue
@@ -105,7 +109,7 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                 if (!property.visibility.isPublicAPI)
                     continue
 
-                if (property.isFakeOverride)
+                if (property.isFakeOverride && !property.isEnumFakeOverriddenDeclaration(context.staticContext.backendContext))
                     continue
 
                 fun IrSimpleFunction.propertyAccessorForwarder(
@@ -137,15 +141,16 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                 // so we need regenerate `defineProperty` with setter.
                 val noOverriddenGetter = property.getter?.overriddenSymbols?.isEmpty() == true
 
-                val overriddenExportedGetter = property.getter?.overriddenSymbols?.isNotEmpty() == true &&
-                        property.getter?.isOverriddenExported(context.staticContext.backendContext) == true
+                val overriddenExportedGetter = (property.getter?.overriddenSymbols?.isNotEmpty() == true &&
+                        property.getter?.isOverriddenExported(context.staticContext.backendContext) == true)
 
                 val noOverriddenExportedSetter = property.setter?.isOverriddenExported(context.staticContext.backendContext) == false
 
-                val needOverrideBySetter = overriddenExportedGetter && noOverriddenExportedSetter
+                val needsOverride = (overriddenExportedGetter && noOverriddenExportedSetter) ||
+                        property.isEnumFakeOverriddenDeclaration(context.staticContext.backendContext)
 
                 if (irClass.isExported(context.staticContext.backendContext) &&
-                    (noOverriddenGetter || needOverrideBySetter) ||
+                    (noOverriddenGetter || needsOverride) ||
                     property.getter?.overridesExternal() == true ||
                     property.getJsName() != null
                 ) {
@@ -204,6 +209,24 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         return classBlock
     }
 
+    private fun IrSimpleFunction.generateAssignmentIfMangled(memberRef: JsExpression) {
+        if (
+            irClass.isExported(context.staticContext.backendContext) &&
+            visibility.isPublicAPI && hasMangledName() &&
+            correspondingPropertySymbol == null
+        ) {
+            classBlock.statements += jsAssignment(prototypeAccessRef(), memberRef).makeStmt()
+        }
+    }
+
+    private fun IrSimpleFunction.hasMangledName(): Boolean {
+        return getJsName() == null && !name.asString().isValidES5Identifier()
+    }
+
+    private fun IrSimpleFunction.prototypeAccessRef(): JsExpression {
+        return jsElementAccess(name.asString(), classPrototypeRef)
+    }
+
     private fun IrSimpleFunction.overridesExternal(): Boolean {
         if (this.isEffectivelyExternal()) return true
 
@@ -214,9 +237,9 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         return isInterface && !isEffectivelyExternal()
     }
 
-    private fun generateMemberFunction(declaration: IrSimpleFunction): Pair<JsNameRef, JsFunction?> {
+    private fun generateMemberFunction(declaration: IrSimpleFunction): Pair<JsExpression, JsFunction?> {
         val memberName = context.getNameForMemberFunction(declaration.realOverrideTarget)
-        val memberRef = JsNameRef(memberName, classPrototypeRef)
+        val memberRef = jsElementAccess(memberName.ident, classPrototypeRef)
 
         if (declaration.isReal && declaration.body != null) {
             val translatedFunction: JsFunction = declaration.accept(IrFunctionToJsTransformer(), context)
@@ -235,17 +258,14 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
         // interface II : I
         // II.prototype.foo = I.prototype.foo
         if (!irClass.isInterface) {
+            val isFakeOverride = declaration.isFakeOverride
+            val missedOverrides = mutableListOf<IrSimpleFunction>()
             declaration.collectRealOverrides()
-                .find { it.modality != Modality.ABSTRACT }
-                ?.let {
-                    val implClassDeclaration = it.parent as IrClass
-
-                    if (implClassDeclaration.shouldCopyFrom() && it.body != null) {
-                        val reference = context.getNameForStaticDeclaration(it).makeRef()
-                        classModel.postDeclarationBlock.statements += jsAssignment(memberRef, reference).makeStmt()
+                .onEach {
+                    if (isFakeOverride && it.modality == Modality.ABSTRACT) {
+                        missedOverrides.add(it)
                     }
                 }
-            declaration.collectRealOverrides()
                 .find { it.modality != Modality.ABSTRACT }
                 ?.let {
                     val implClassDeclaration = it.parent as IrClass
@@ -253,6 +273,14 @@ class JsClassGenerator(private val irClass: IrClass, val context: JsGenerationCo
                     if (implClassDeclaration.shouldCopyFrom() && it.body != null) {
                         val reference = context.getNameForStaticDeclaration(it).makeRef()
                         classModel.postDeclarationBlock.statements += jsAssignment(memberRef, reference).makeStmt()
+                        if (isFakeOverride) {
+                            classModel.postDeclarationBlock.statements += missedOverrides
+                                .map { missedOverride ->
+                                    val name = context.getNameForMemberFunction(missedOverride)
+                                    val ref = jsElementAccess(name.ident, classPrototypeRef)
+                                    jsAssignment(ref, reference).makeStmt()
+                                }
+                        }
                     }
                 }
         }

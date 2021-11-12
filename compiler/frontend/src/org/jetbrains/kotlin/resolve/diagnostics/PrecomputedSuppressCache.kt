@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.resolve.diagnostics
 
+import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.psi.KtAnnotated
@@ -23,8 +24,8 @@ import org.jetbrains.kotlin.resolve.BindingContext
  *   primary use case of this class is when that binding context is cleared and thus is useless after a certain point.
  */
 class PrecomputedSuppressCache(context: BindingContext, files: List<KtFile>) : KotlinSuppressCache() {
-    val storage: Map<KtAnnotated, List<AnnotationDescriptor>> =
-        mutableMapOf<KtAnnotated, List<AnnotationDescriptor>>().also { storage ->
+    val storage: Map<PsiElement, List<AnnotationDescriptor>> =
+        mutableMapOf<PsiElement, List<AnnotationDescriptor>>().also { storage ->
             val visitor = PrecomputingVisitor(storage, BindingContextSuppressCache(context))
             for (file in files) {
                 file.accept(visitor, null)
@@ -32,7 +33,7 @@ class PrecomputedSuppressCache(context: BindingContext, files: List<KtFile>) : K
         }
 
     private class PrecomputingVisitor(
-        val storage: MutableMap<KtAnnotated, List<AnnotationDescriptor>>,
+        val storage: MutableMap<PsiElement, List<AnnotationDescriptor>>,
         val computer: KotlinSuppressCache,
     ) : KtTreeVisitorVoid() {
         override fun visitKtElement(element: KtElement) {
@@ -55,6 +56,55 @@ class PrecomputedSuppressCache(context: BindingContext, files: List<KtFile>) : K
         }
     }
 
-    override fun getSuppressionAnnotations(annotated: KtAnnotated): List<AnnotationDescriptor> =
+    override fun getSuppressionAnnotations(annotated: PsiElement): List<AnnotationDescriptor> =
         storage[annotated].orEmpty()
+}
+
+class OnDemandSuppressCache(private val context: BindingContext) : KotlinSuppressCache() {
+
+    private val processedRoots = mutableSetOf<KtFile>()
+
+    private val storage = mutableMapOf<PsiElement, List<AnnotationDescriptor>>()
+
+    @Synchronized
+    private fun ensureRootProcessed(rootElement: PsiElement) {
+        require(rootElement is KtFile)
+        if (!processedRoots.contains(rootElement)) {
+            val visitor = PrecomputingVisitor(storage, BindingContextSuppressCache(context))
+            rootElement.accept(visitor, null)
+            processedRoots.add(rootElement)
+        }
+    }
+
+    private class PrecomputingVisitor(
+        val storage: MutableMap<PsiElement, List<AnnotationDescriptor>>,
+        val computer: KotlinSuppressCache,
+    ) : KtTreeVisitorVoid() {
+        override fun visitKtElement(element: KtElement) {
+            super.visitKtElement(element)
+            if (element is KtAnnotated) {
+                computeAnnotations(element)
+            }
+        }
+
+        override fun visitKtFile(file: KtFile) {
+            super.visitKtFile(file)
+            computeAnnotations(file)
+        }
+
+        private fun computeAnnotations(element: KtAnnotated) {
+            val suppressions = computer.getSuppressionAnnotations(element).filter { it.fqName == StandardNames.FqNames.suppress }
+            if (suppressions.isNotEmpty()) {
+                storage[element] = suppressions
+            }
+        }
+    }
+
+    override fun getSuppressionAnnotations(annotated: PsiElement): List<AnnotationDescriptor> =
+        storage[annotated].orEmpty()
+
+    override fun getClosestAnnotatedAncestorElement(element: PsiElement, rootElement: PsiElement, excludeSelf: Boolean): PsiElement? {
+        ensureRootProcessed(rootElement)
+        return super.getClosestAnnotatedAncestorElement(element, rootElement, excludeSelf)
+    }
 }

@@ -37,7 +37,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
-@SimpleGradlePluginTests
+@JsGradlePluginTests
 class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
 
     @DisplayName("TS type declarations are generated")
@@ -77,7 +77,7 @@ class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
             )
 
             build("build") {
-                assertFileNotExists("build/js/packages/kotlin-js-nodejs/kotlin/")
+                assertFileInProjectNotExists("build/js/packages/kotlin-js-nodejs/kotlin/")
             }
         }
     }
@@ -102,7 +102,7 @@ class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
                     .let { it!!.version }
 
             build("build") {
-                val appAsyncVersion = asyncVersion("build/js/node_modules/app", "async")
+                val appAsyncVersion = asyncVersion("build/js/node_modules/js-composite-build", "async")
                 assertEquals("3.2.0", appAsyncVersion)
 
                 val libAsyncVersion = asyncVersion("build/js/node_modules/lib2", "async")
@@ -129,7 +129,7 @@ class Kotlin2JsIrGradlePluginIT : AbstractKotlin2JsGradlePluginIT(true) {
     }
 }
 
-@SimpleGradlePluginTests
+@JsGradlePluginTests
 class Kotlin2JsGradlePluginIT : AbstractKotlin2JsGradlePluginIT(false) {
 
     @DisplayName("incremental compilation for js works")
@@ -338,7 +338,11 @@ class Kotlin2JsGradlePluginIT : AbstractKotlin2JsGradlePluginIT(false) {
 
             Files.copy(baseJar, modifiedBaseJar)
 
+            val baseBuildscript = baseSubproject.buildGradleKts
             val libBuildscript = libSubproject.buildGradleKts
+            baseBuildscript.modify {
+                it.replace("js(\"both\")", "js(\"both\") { moduleName = \"base2\" }")
+            }
             libBuildscript.modify {
                 it.replace("implementation(project(\":base\"))", "implementation(files(\"${normalizePath(originalBaseJar.toString())}\"))")
             }
@@ -369,6 +373,7 @@ class Kotlin2JsGradlePluginIT : AbstractKotlin2JsGradlePluginIT(false) {
     }
 }
 
+@JsGradlePluginTests
 abstract class AbstractKotlin2JsGradlePluginIT(protected val irBackend: Boolean) : KGPBaseTest() {
     private val defaultJsOptions = BuildOptions.JsOptions(
         useIrBackend = irBackend,
@@ -1018,7 +1023,7 @@ abstract class AbstractKotlin2JsGradlePluginIT(protected val irBackend: Boolean)
             }
 }
 
-@SimpleGradlePluginTests
+@JsGradlePluginTests
 class GeneralKotlin2JsGradlePluginIT : KGPBaseTest() {
     @DisplayName("js with both backends mode builds successfully")
     @GradleTest
@@ -1037,6 +1042,23 @@ class GeneralKotlin2JsGradlePluginIT : KGPBaseTest() {
             build("checkDownloadedFolder")
 
             build("checkIfLastModifiedNotNow", "--rerun-tasks")
+        }
+    }
+
+    @DisplayName("Yarn.lock persistence")
+    @GradleTest
+    fun testYarnLockStore(gradleVersion: GradleVersion) {
+        project("cleanTask", gradleVersion) {
+            buildGradle.modify(::transformBuildScriptWithPluginsDsl)
+            build("assemble") {
+                assertFileExists(projectPath.resolve("kotlin-js-store").resolve("yarn.lock"))
+                assert(
+                    projectPath
+                        .resolve("kotlin-js-store")
+                        .resolve("yarn.lock")
+                        .readText() == projectPath.resolve("build/js/yarn.lock").readText()
+                )
+            }
         }
     }
 }

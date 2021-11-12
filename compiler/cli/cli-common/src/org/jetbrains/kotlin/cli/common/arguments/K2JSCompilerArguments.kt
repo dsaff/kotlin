@@ -233,12 +233,22 @@ class K2JSCompilerArguments : CommonCompilerArguments() {
     var wasm: Boolean by FreezableVar(false)
 
     @Argument(value = "-Xwasm-debug-info", description = "Add debug info to WebAssembly compiled module")
-    var wasmDebug: Boolean by FreezableVar(false)
+    var wasmDebug: Boolean by FreezableVar(true)
+
+    @Argument(
+            value = "-Xwasm-launcher",
+            valueDescription = "esm|nodejs",
+            description = "Picks flavor for the wasm launcher. Default is ESM."
+    )
+    var wasmLauncher: String? by NullableStringFreezableVar("esm")
 
     override fun configureLanguageFeatures(collector: MessageCollector): MutableMap<LanguageFeature, LanguageFeature.State> {
         return super.configureLanguageFeatures(collector).apply {
             if (extensionFunctionsInExternals) {
                 this[LanguageFeature.JsEnableExtensionFunctionInExternals] = LanguageFeature.State.ENABLED
+            }
+            if (!isIrBackendEnabled()) {
+                this[LanguageFeature.JsAllowInvalidCharsIdentifiersEscaping] = LanguageFeature.State.DISABLED
             }
         }
     }

@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.fir.session
 
 import com.intellij.psi.PsiFile
+import org.jetbrains.kotlin.KtPsiSourceElement
+import org.jetbrains.kotlin.KtSourceElement
 import org.jetbrains.kotlin.config.JvmAnalysisFlags
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.*
@@ -32,6 +34,7 @@ import org.jetbrains.kotlin.fir.resolve.providers.impl.FirQualifierResolverImpl
 import org.jetbrains.kotlin.fir.resolve.providers.impl.FirTypeResolverImpl
 import org.jetbrains.kotlin.fir.resolve.transformers.FirPhaseCheckingPhaseManager
 import org.jetbrains.kotlin.fir.resolve.transformers.plugin.GeneratedClassIndex
+import org.jetbrains.kotlin.fir.scopes.FirPlatformClassMapper
 import org.jetbrains.kotlin.fir.scopes.impl.FirDeclaredMemberScopeProvider
 import org.jetbrains.kotlin.fir.scopes.impl.FirIntersectionOverrideStorage
 import org.jetbrains.kotlin.fir.scopes.impl.FirSubstitutionOverrideStorage
@@ -93,8 +96,8 @@ fun FirSession.registerResolveComponents(lookupTracker: LookupTracker? = null) {
     register(FirNameConflictsTrackerComponent::class, FirNameConflictsTracker())
     register(FirModuleVisibilityChecker::class, FirModuleVisibilityChecker.Standard(this))
     if (lookupTracker != null) {
-        val firFileToPath: (FirSourceElement) -> String = {
-            val psiSource = (it as? FirPsiSourceElement) ?: TODO("Not implemented for non-FirPsiSourceElement")
+        val firFileToPath: (KtSourceElement) -> String = {
+            val psiSource = (it as? KtPsiSourceElement) ?: TODO("Not implemented for non-FirPsiSourceElement")
             ((psiSource.psi as? PsiFile) ?: psiSource.psi.containingFile).virtualFile.path
         }
         register(

@@ -45,14 +45,14 @@ class JavaClassUseSiteMemberScope(
     declaredMemberScope: FirContainingNamesAwareScope
 ) : AbstractFirUseSiteMemberScope(
     session,
-    JavaOverrideChecker(session, klass.javaTypeParameterStack),
+    JavaOverrideChecker(session, klass.javaTypeParameterStack, superTypesScope, considerReturnTypeKinds = true),
     superTypesScope,
     declaredMemberScope
 ) {
     private val typeParameterStack = klass.javaTypeParameterStack
     private val specialFunctions = hashMapOf<Name, Collection<FirNamedFunctionSymbol>>()
-    private val accessorByNameMap = hashMapOf<Name, FirSyntheticPropertySymbol>()
-    
+    private val syntheticPropertyByNameMap = hashMapOf<Name, FirSyntheticPropertySymbol>()
+
     private val canUseSpecialGetters: Boolean by lazy { !klass.hasKotlinSuper(session) }
 
     private val callableNamesCached by lazy(LazyThreadSafetyMode.PUBLICATION) {
@@ -65,13 +65,13 @@ class JavaClassUseSiteMemberScope(
         return declaredMemberScope.getClassifierNames() + superTypesScope.getClassifierNames()
     }
 
-    private fun generateAccessorSymbol(
+    private fun generateSyntheticPropertySymbol(
         getterSymbol: FirNamedFunctionSymbol,
         setterSymbol: FirNamedFunctionSymbol?,
         property: FirProperty,
         takeModalityFromGetter: Boolean,
     ): FirSyntheticPropertySymbol {
-        return accessorByNameMap.getOrPut(property.name) {
+        return syntheticPropertyByNameMap.getOrPut(property.name) {
             buildSyntheticProperty {
                 moduleData = session.moduleData
                 name = property.name
@@ -103,16 +103,17 @@ class JavaClassUseSiteMemberScope(
         return minOf(a, b)
     }
 
-    override fun processPropertiesByName(name: Name, processor: (FirVariableSymbol<*>) -> Unit) {
+    override fun doProcessProperties(name: Name): Collection<FirVariableSymbol<*>> {
         val fields = mutableSetOf<FirCallableSymbol<*>>()
         val fieldNames = mutableSetOf<Name>()
+        val result = mutableSetOf<FirVariableSymbol<*>>()
 
         // fields
         declaredMemberScope.processPropertiesByName(name) processor@{ variableSymbol ->
             if (variableSymbol.isStatic) return@processor
             fields += variableSymbol
             fieldNames += variableSymbol.fir.name
-            processor(variableSymbol)
+            result += variableSymbol
         }
 
         val fromSupertypes = superTypesScope.getProperties(name)
@@ -120,7 +121,7 @@ class JavaClassUseSiteMemberScope(
         for (propertyFromSupertype in fromSupertypes) {
             if (propertyFromSupertype is FirFieldSymbol) {
                 if (propertyFromSupertype.fir.name !in fieldNames) {
-                    processor(propertyFromSupertype)
+                    result += propertyFromSupertype
                 }
                 continue
             }
@@ -132,11 +133,12 @@ class JavaClassUseSiteMemberScope(
                 overrideInClass != null -> {
                     directOverriddenProperties.getOrPut(overrideInClass) { mutableListOf() }.add(propertyFromSupertype)
                     overrideByBase[propertyFromSupertype] = overrideInClass
-                    processor(overrideInClass)
+                    result += overrideInClass
                 }
-                else -> processor(propertyFromSupertype)
+                else -> result += propertyFromSupertype
             }
         }
+        return result
     }
 
     private fun FirVariableSymbol<*>.createOverridePropertyIfExists(
@@ -152,18 +154,15 @@ class JavaClassUseSiteMemberScope(
                 null
         if (setterSymbol != null && setterSymbol.fir.modality != getterSymbol.fir.modality) return null
 
-        return generateAccessorSymbol(getterSymbol, setterSymbol, fir, takeModalityFromGetter)
+        return generateSyntheticPropertySymbol(getterSymbol, setterSymbol, fir, takeModalityFromGetter)
     }
 
     private fun FirPropertySymbol.findGetterOverride(
         scope: FirScope,
     ): FirNamedFunctionSymbol? {
         val specialGetterName = if (canUseSpecialGetters) getBuiltinSpecialPropertyGetterName() else null
-        if (specialGetterName != null) {
-            return findGetterByName(specialGetterName.asString(), scope)
-        }
-
-        return findGetterByName(JvmAbi.getterName(fir.name.asString()), scope)
+        val name = specialGetterName?.asString() ?: JvmAbi.getterName(fir.name.asString())
+        return findGetterByName(name, scope)
     }
 
     private fun FirPropertySymbol.findGetterByName(

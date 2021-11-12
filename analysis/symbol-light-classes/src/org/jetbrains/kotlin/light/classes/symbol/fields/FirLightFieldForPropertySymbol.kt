@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.analysis.api.isValid
 import org.jetbrains.kotlin.analysis.api.symbols.KtKotlinPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.KtPropertySymbol
 import org.jetbrains.kotlin.analysis.api.symbols.markers.KtLiteralConstantValue
+import org.jetbrains.kotlin.analysis.api.types.KtTypeMappingMode
 import org.jetbrains.kotlin.psi.KtDeclaration
 import org.jetbrains.kotlin.psi.KtProperty
 
@@ -34,10 +35,11 @@ internal class FirLightFieldForPropertySymbol(
             when {
                 isDelegated ->
                     (kotlinOrigin as? KtProperty)?.delegateExpression?.let {
-                        it.getKtType()?.asPsiType(this@FirLightFieldForPropertySymbol)
+                        it.getKtType()?.asPsiType(this@FirLightFieldForPropertySymbol, KtTypeMappingMode.RETURN_TYPE)
                     }
-                else ->
-                    propertySymbol.annotatedType.type.asPsiType(this@FirLightFieldForPropertySymbol)
+                else -> {
+                    propertySymbol.annotatedType.type.asPsiType(this@FirLightFieldForPropertySymbol, KtTypeMappingMode.RETURN_TYPE)
+                }
             }
         } ?: nonExistentType()
     }

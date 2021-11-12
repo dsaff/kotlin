@@ -320,11 +320,9 @@ abstract class BasicIrBoxTest(
                             generateEsModules(ir, dceOutputFile.esModulesSubDir, granularity, config, customTestModule, mainArguments)
                         }
                     } else {
-                        val jsOutputFile = if (recompile) File(outputFile.parentFile, outputFile.nameWithoutExtension + "-recompiled.js")
-                        else outputFile
                         generateOldModuleSystems(
                             ir.oldIr2Js(granularity, runIrDce, mainArguments),
-                            jsOutputFile,
+                            outputFile,
                             dceOutputFile,
                             config,
                             units,
@@ -462,9 +460,9 @@ abstract class BasicIrBoxTest(
             dtsFile.write(compiledModule.tsDefinitions ?: error("No ts definitions"))
         }
 
-                compiledOutput.jsProgram?.let {
-                    JsAstHandler.processUnitsOfJsProgram(it, units, targetBackend = TargetBackend.JS_IR) { Assert.fail(it) }
-                }
+        compiledOutput.jsProgram?.let {
+            JsAstHandler.processUnitsOfJsProgram(it, units, targetBackend = TargetBackend.JS_IR) { Assert.fail(it) }
+        }
     }
 
     private fun generateTestFile(outputDir: File, config: JsConfig, customTestModule: String?) {

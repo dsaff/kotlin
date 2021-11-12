@@ -32,13 +32,17 @@ import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeBuilder
 import org.jetbrains.kotlin.ir.types.impl.buildSimpleType
 import org.jetbrains.kotlin.ir.types.impl.originalKotlinType
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.TypeTranslator
+import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.util.referenceClassifier
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.checker.KotlinTypeChecker
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 @ObsoleteDescriptorBasedAPI
 class IrBuiltInsOverDescriptors(
@@ -53,7 +57,7 @@ class IrBuiltInsOverDescriptors(
         get() =
             synchronized(this) {
                 if (_functionFactory == null) {
-                    _functionFactory = IrDescriptorBasedFunctionFactory(this, symbolTable)
+                    _functionFactory = IrDescriptorBasedFunctionFactory(this, symbolTable, typeTranslator)
                 }
                 _functionFactory!!
             }
@@ -502,18 +506,36 @@ class IrBuiltInsOverDescriptors(
             } else null
         }
 
-    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(Name.identifier("toString"), "kotlin").first {
+    override val extensionToString: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.TO_STRING, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
-                KotlinBuiltIns.isNullableAny(descriptor.extensionReceiverParameter!!.type) && descriptor.valueParameters.size == 0
+                KotlinBuiltIns.isNullableAny(descriptor.extensionReceiverParameter!!.type) && descriptor.valueParameters.isEmpty()
     }
 
-    override val stringPlus: IrSimpleFunctionSymbol = findFunctions(Name.identifier("plus"), "kotlin").first {
+    override val memberToString: IrSimpleFunctionSymbol = findBuiltInClassMemberFunctions(
+        anyClass,
+        OperatorNameConventions.TO_STRING
+    ).single {
+        val descriptor = it.descriptor
+        descriptor is SimpleFunctionDescriptor && descriptor.valueParameters.isEmpty()
+    }
+
+    override val extensionStringPlus: IrSimpleFunctionSymbol = findFunctions(OperatorNameConventions.PLUS, "kotlin").first {
         val descriptor = it.descriptor
         descriptor is SimpleFunctionDescriptor && descriptor.dispatchReceiverParameter == null &&
                 descriptor.extensionReceiverParameter != null &&
                 KotlinBuiltIns.isStringOrNullableString(descriptor.extensionReceiverParameter!!.type) &&
+                descriptor.valueParameters.size == 1 &&
+                KotlinBuiltIns.isNullableAny(descriptor.valueParameters.first().type)
+    }
+
+    override val memberStringPlus: IrSimpleFunctionSymbol = findBuiltInClassMemberFunctions(
+        stringClass,
+        OperatorNameConventions.PLUS
+    ).single {
+        val descriptor = it.descriptor
+        descriptor is SimpleFunctionDescriptor &&
                 descriptor.valueParameters.size == 1 &&
                 KotlinBuiltIns.isNullableAny(descriptor.valueParameters.first().type)
     }

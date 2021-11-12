@@ -76,8 +76,9 @@ class FirSignatureEnhancement(
     ): FirFunctionSymbol<*> {
         return enhancements.getOrPut(function) {
             enhance(function, name).also { enhancedVersion ->
-                (enhancedVersion.fir.initialSignatureAttr as? FirSimpleFunction)?.let {
-                    enhancedVersion.fir.initialSignatureAttr = enhancedFunction(it.symbol, it.name).fir
+                val enhancedVersionFir = enhancedVersion.fir
+                (enhancedVersionFir.initialSignatureAttr as? FirSimpleFunction)?.let {
+                    enhancedVersionFir.initialSignatureAttr = enhancedFunction(it.symbol, it.name).fir
                 }
             }
         } as FirFunctionSymbol<*>
@@ -87,7 +88,7 @@ class FirSignatureEnhancement(
         return enhancements.getOrPut(property) { enhance(property, name) } as FirVariableSymbol<*>
     }
 
-    private fun FirAnnotatedDeclaration.computeDefaultQualifiers() =
+    private fun FirDeclaration.computeDefaultQualifiers() =
         typeQualifierResolver.extractAndMergeDefaultQualifiers(contextQualifiers, annotations)
 
     private fun enhance(
@@ -152,6 +153,7 @@ class FirSignatureEnhancement(
                 } else {
                     setterDelegate?.symbol
                 }
+                if (getterDelegate !is FirJavaMethod && setterDelegate !is FirJavaMethod) return original
                 return buildSyntheticProperty {
                     moduleData = this@FirSignatureEnhancement.moduleData
                     this.name = name

@@ -5,7 +5,6 @@
 
 package org.jetbrains.kotlin.backend.wasm.ir2wasm
 
-import org.jetbrains.kotlin.backend.wasm.utils.hasWasmForeignAnnotation
 import org.jetbrains.kotlin.ir.IrBuiltIns
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
@@ -97,12 +96,12 @@ class WasmTypeTransformer(
                 error("Void type can't be used as a value")
 
             else -> {
-                val klass = this.getClass()
+                val klass = this.erasedUpperBound ?: builtIns.anyClass.owner
                 val ic = context.backendContext.inlineClassesUtils.getInlinedClass(this)
 
-                if (klass != null && (klass.hasWasmForeignAnnotation() || klass.isExternal)) {
+                if (klass.isExternal) {
                     WasmAnyRef
-                } else if (klass != null && isBuiltInWasmRefType(this)) {
+                } else if (isBuiltInWasmRefType(this)) {
                     when (val name = klass.name.identifier) {
                         "anyref" -> WasmAnyRef
                         "eqref" -> WasmEqRef

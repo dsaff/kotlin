@@ -5,8 +5,10 @@
 
 package org.jetbrains.kotlin.fir.resolve.transformers
 
+import org.jetbrains.kotlin.KtFakeSourceElementKind
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Visibility
+import org.jetbrains.kotlin.fakeElement
 import org.jetbrains.kotlin.fir.*
 import org.jetbrains.kotlin.fir.declarations.*
 import org.jetbrains.kotlin.fir.declarations.utils.isInline
@@ -98,13 +100,13 @@ class FirCallCompletionResultsWriterTransformer(
             val calculated = typeCalculator.tryCalculateReturnType(declaration)
             if (calculated !is FirErrorTypeRef) {
                 buildResolvedTypeRef {
-                    source = calculated.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)
+                    source = calculated.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
                     annotations += calculated.annotations
                     type = calculated.type
                 }
             } else {
                 buildErrorTypeRef {
-                    source = calculated.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)
+                    source = calculated.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
                     diagnostic = calculated.diagnostic
                 }
             }
@@ -115,7 +117,7 @@ class FirCallCompletionResultsWriterTransformer(
             // in these cases we should report an error on
             // the calleeReference.source which is not a fake source.
             buildErrorTypeRef {
-                source = calleeReference.source?.fakeElement(FirFakeSourceElementKind.ImplicitTypeRef)
+                source = calleeReference.source?.fakeElement(KtFakeSourceElementKind.ImplicitTypeRef)
                 diagnostic =
                     when (declaration) {
                         is FirTypeParameter -> ConeTypeParameterInQualifiedAccess(declaration.symbol)
@@ -605,7 +607,10 @@ class FirCallCompletionResultsWriterTransformer(
 
         if (needUpdateLambdaType) {
             val resolvedTypeRef =
-                anonymousFunction.constructFunctionalTypeRef(isSuspend = expectedType?.isSuspendFunctionType(session) == true)
+                anonymousFunction.constructFunctionalTypeRef(
+                    isSuspend = expectedType?.isSuspendFunctionType(session) == true ||
+                            (expectedType == null && anonymousFunction.isSuspendFunctionType())
+                )
             anonymousFunction.replaceTypeRef(resolvedTypeRef)
             session.lookupTracker?.recordTypeResolveAsLookup(resolvedTypeRef, anonymousFunction.source, null)
         }
@@ -637,6 +642,9 @@ class FirCallCompletionResultsWriterTransformer(
 
         return result
     }
+
+    private fun FirAnonymousFunction.isSuspendFunctionType() =
+        typeRef.coneTypeSafe<ConeKotlinType>()?.isSuspendFunctionType(session) == true
 
     private fun transformImplicitTypeRefInAnonymousFunction(
         anonymousFunction: FirAnonymousFunction

@@ -10,8 +10,8 @@ import org.jetbrains.kotlin.backend.jvm.serialization.JvmIdSignatureDescriptor
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.fir.FirSession
 import org.jetbrains.kotlin.fir.analysis.collectors.FirDiagnosticsCollector
-import org.jetbrains.kotlin.fir.analysis.diagnostics.DiagnosticReporterFactory
-import org.jetbrains.kotlin.fir.analysis.diagnostics.FirDiagnostic
+import org.jetbrains.kotlin.diagnostics.DiagnosticReporterFactory
+import org.jetbrains.kotlin.diagnostics.KtDiagnostic
 import org.jetbrains.kotlin.fir.backend.Fir2IrConverter
 import org.jetbrains.kotlin.fir.backend.Fir2IrResult
 import org.jetbrains.kotlin.fir.backend.jvm.Fir2IrJvmSpecialAnnotationSymbolProvider
@@ -34,7 +34,7 @@ import java.io.File
 
 abstract class AbstractFirAnalyzerFacade {
     abstract val scopeSession: ScopeSession
-    abstract fun runCheckers(): Map<FirFile, List<FirDiagnostic>>
+    abstract fun runCheckers(): Map<FirFile, List<KtDiagnostic>>
 
     abstract fun runResolution(): List<FirFile>
 
@@ -55,7 +55,7 @@ class FirAnalyzerFacade(
     override val scopeSession: ScopeSession
         get() = _scopeSession!!
 
-    private var collectedDiagnostics: Map<FirFile, List<FirDiagnostic>>? = null
+    private var collectedDiagnostics: Map<FirFile, List<KtDiagnostic>>? = null
 
     private fun buildRawFir() {
         if (firFiles != null) return
@@ -87,7 +87,7 @@ class FirAnalyzerFacade(
     }
 
     @OptIn(ExperimentalStdlibApi::class)
-    override fun runCheckers(): Map<FirFile, List<FirDiagnostic>> {
+    override fun runCheckers(): Map<FirFile, List<KtDiagnostic>> {
         if (_scopeSession == null) runResolution()
         if (collectedDiagnostics != null) return collectedDiagnostics!!
         val collector = FirDiagnosticsCollector.create(session, scopeSession)
